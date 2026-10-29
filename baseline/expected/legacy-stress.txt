@@ -1,0 +1,12 @@
+Legacy concurrent main(): 300 runs, Thu Oct 29 16:31:29 +08 2026
+Runs with no detected defect: 92
+
+Defect categories (one run can have several):
+ 123 thread crashed: java.lang.NullPointerException:
+  67 Generated Alerts N != archived N
+  58 chamber Alerts sum N != archived N
+  27 water N != expected N (lost update)
+  24 energy N != expected N (lost update)
+   7 report printed BEFORE archive (ordering race)
+   5 thread crashed: Exception
+   1 thread crashed: [CHN][Chili][ALERT]

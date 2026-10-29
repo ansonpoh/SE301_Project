@@ -1,0 +1,304 @@
+##### STDOUT (control lines removed) #####
+[CH1][Tomato][ALERT] CH1 Tomato High Temp
+[CH1][Tomato][ALERT] CH1 Tomato Low Humidity
+[CH1][Tomato][ALERT] CH1 Tomato High Temp
+[CH1][Tomato][ALERT] CH1 Tomato Low Humidity
+[CH1][Tomato][ALERT] CH1 Low Nutrient Level
+[CH1][Tomato][ALERT] CH1 Tomato Low Temp
+[CH1][Tomato][ALERT] CH1 Tomato Low Humidity
+[CH1][Tomato][ALERT] CH1 Tomato Low Temp
+[CH1][Tomato][ALERT] CH1 Tomato High Temp
+[CH1][Tomato][ALERT] CH1 Tomato High Humidity
+[CH1][Tomato][ALERT] CH1 Tomato High Temp
+[CH1][Tomato][ALERT] CH1 Tomato Low Humidity
+[CH1][Tomato][ALERT] CH1 Low Nutrient Level
+[CH1][Tomato][ALERT] CH1 Tomato Low Temp
+[CH1][Tomato][ALERT] CH1 Low Light Level
+[CH1][Tomato][ALERT] CH1 Tomato Low Humidity
+[CH1][Tomato][ALERT] CH1 Tomato Low Soil Moisture
+[CH1][Tomato][ALERT] CH1 Tomato High Temp
+[CH1][Tomato][ALERT] CH1 Tomato Low Soil Moisture
+[CH1][Tomato][ALERT] CH1 Tomato High Temp
+[CH1][Tomato][ALERT] CH1 Tomato Low Humidity
+[CH1][Tomato][ALERT] CH1 Tomato Low Temp
+[CH1][Tomato][ALERT] CH1 Tomato Low Humidity
+[CH1][Tomato][ALERT] CH1 Tomato Low Soil Moisture
+[CH1][Tomato][ALERT] CH1 Low Nutrient Level
+[CH1][Tomato][ALERT] CH1 Tomato Low Temp
+[CH1][Tomato][ALERT] CH1 Tomato High Humidity
+[CH1][Tomato][ALERT] CH1 Tomato Low Soil Moisture
+[CH1][Tomato][ALERT] CH1 Low Light Level
+[CH1][Tomato][ALERT] CH1 Tomato Low Temp
+[CH1][Tomato][ALERT] CH1 Tomato High Humidity
+[CH1][Tomato][ALERT] CH1 Tomato Low Soil Moisture
+[CH1][Tomato][ALERT] CH1 Tomato High Temp
+[CH1][Tomato][ALERT] CH1 Low Nutrient Level
+[CH1][Tomato][ALERT] CH1 Tomato Low Temp
+[CH1][Tomato][ALERT] CH1 Tomato Low Soil Moisture
+[CH1][Tomato][ALERT] CH1 Tomato Low Temp
+[CH1][Tomato][ALERT] CH1 Tomato Low Humidity
+[CH1][Tomato][ALERT] CH1 Tomato Low Soil Moisture
+[CH1][Tomato][ALERT] CH1 Tomato High Temp
+[CH1][Tomato][ALERT] CH1 Tomato Low Soil Moisture
+[CH1][Tomato][ALERT] CH1 Tomato Low Temp
+[CH1][Tomato][ALERT] CH1 Tomato Low Humidity
+[CH2][Strawberry][ALERT] CH2 Strawberry Low Temp
+[CH2][Strawberry][ALERT] CH2 Strawberry Low Temp
+[CH2][Strawberry][ALERT] CH2 Strawberry Low Humidity
+[CH2][Strawberry][ALERT] CH2 Low Light Level
+[CH2][Strawberry][ALERT] CH2 Strawberry High Temp
+[CH2][Strawberry][ALERT] CH2 Strawberry Low Humidity
+[CH2][Strawberry][ALERT] CH2 Low Light Level
+[CH2][Strawberry][ALERT] CH2 Strawberry Low Temp
+[CH2][Strawberry][ALERT] CH2 Strawberry High Humidity
+[CH2][Strawberry][ALERT] CH2 Strawberry Low Temp
+[CH2][Strawberry][ALERT] CH2 Strawberry High Humidity
+[CH2][Strawberry][ALERT] CH2 Low Nutrient Level
+[CH2][Strawberry][ALERT] CH2 Strawberry Low Humidity
+[CH2][Strawberry][ALERT] CH2 Low Light Level
+[CH2][Strawberry][ALERT] CH2 Strawberry High Temp
+[CH2][Strawberry][ALERT] CH2 Strawberry High Temp
+[CH2][Strawberry][ALERT] CH2 Strawberry High Humidity
+[CH2][Strawberry][ALERT] CH2 Strawberry High Temp
+[CH2][Strawberry][ALERT] CH2 Strawberry Low Humidity
+[CH2][Strawberry][ALERT] CH2 Strawberry High Temp
+[CH2][Strawberry][ALERT] CH2 Strawberry Low Humidity
+[CH2][Strawberry][ALERT] CH2 Low Nutrient Level
+[CH2][Strawberry][ALERT] CH2 Strawberry Low Temp
+[CH2][Strawberry][ALERT] CH2 Strawberry Low Temp
+[CH2][Strawberry][ALERT] CH2 Strawberry High Humidity
+[CH2][Strawberry][ALERT] CH2 Low Light Level
+[CH2][Strawberry][ALERT] CH2 Strawberry Low Humidity
+[CH2][Strawberry][ALERT] CH2 Strawberry High Temp
+[CH2][Strawberry][ALERT] CH2 Strawberry Low Humidity
+[CH2][Strawberry][ALERT] CH2 Strawberry High Temp
+[CH2][Strawberry][ALERT] CH2 Strawberry High Humidity
+[CH2][Strawberry][ALERT] CH2 Strawberry Low Temp
+[CH2][Strawberry][ALERT] CH2 Low Light Level
+[CH2][Strawberry][ALERT] CH2 Low Nutrient Level
+[CH2][Strawberry][ALERT] CH2 Low Nutrient Level
+[CH2][Strawberry][ALERT] CH2 Strawberry High Temp
+[CH2][Strawberry][ALERT] CH2 Strawberry Low Humidity
+[CH2][Strawberry][ALERT] CH2 Low Nutrient Level
+[CH3][Lettuce][ALERT] CH3 Low Light Level
+[CH3][Lettuce][ALERT] CH3 Lettuce Low Temp
+[CH3][Lettuce][ALERT] CH3 Low Light Level
+[CH3][Lettuce][ALERT] CH3 Low Nutrient Level
+[CH3][Lettuce][ALERT] CH3 Lettuce High Temp
+[CH3][Lettuce][ALERT] CH3 Low Light Level
+[CH3][Lettuce][ALERT] CH3 Low Nutrient Level
+[CH3][Lettuce][ALERT] CH3 Lettuce High Temp
+[CH3][Lettuce][ALERT] CH3 Lettuce High Temp
+[CH3][Lettuce][ALERT] CH3 Low Light Level
+[CH3][Lettuce][ALERT] CH3 Low Nutrient Level
+[CH3][Lettuce][ALERT] CH3 Lettuce High Temp
+[CH3][Lettuce][ALERT] CH3 Low Light Level
+[CH3][Lettuce][ALERT] CH3 Lettuce Low Temp
+[CH3][Lettuce][ALERT] CH3 Low Nutrient Level
+[CH3][Lettuce][ALERT] CH3 Lettuce High Temp
+[CH3][Lettuce][ALERT] CH3 Low Light Level
+[CH3][Lettuce][ALERT] CH3 Low Nutrient Level
+[CH3][Lettuce][ALERT] CH3 Low Light Level
+[CH3][Lettuce][ALERT] CH3 Low Light Level
+[CH3][Lettuce][ALERT] CH3 Lettuce High Temp
+[CH3][Lettuce][ALERT] CH3 Low Nutrient Level
+[CH3][Lettuce][ALERT] CH3 Low Nutrient Level
+[CH3][Lettuce][ALERT] CH3 Lettuce Low Temp
+[CH3][Lettuce][ALERT] CH3 Lettuce High Temp
+[CH3][Lettuce][ALERT] CH3 Low Light Level
+[CH4][Chili][ALERT] CH4 Low Light Level
+[CH4][Chili][ALERT] CH4 Chili Low Temp
+[CH4][Chili][ALERT] CH4 Chili Low Temp
+[CH4][Chili][ALERT] CH4 Low Light Level
+[CH4][Chili][ALERT] CH4 Low Nutrient Level
+[CH4][Chili][ALERT] CH4 Chili High Temp
+[CH4][Chili][ALERT] CH4 Low Light Level
+[CH4][Chili][ALERT] CH4 Chili Low Temp
+[CH4][Chili][ALERT] CH4 Chili High Temp
+[CH4][Chili][ALERT] CH4 Chili Low Temp
+[CH4][Chili][ALERT] CH4 Low Nutrient Level
+[CH4][Chili][ALERT] CH4 Chili Low Temp
+[CH4][Chili][ALERT] CH4 Chili High Temp
+[CH4][Chili][ALERT] CH4 Low Light Level
+[CH4][Chili][ALERT] CH4 Chili High Temp
+[CH4][Chili][ALERT] CH4 Low Nutrient Level
+[CH4][Chili][ALERT] CH4 Chili High Temp
+[CH4][Chili][ALERT] CH4 Chili Low Temp
+[CH4][Chili][ALERT] CH4 Low Light Level
+[CH4][Chili][ALERT] CH4 Low Nutrient Level
+[CH4][Chili][ALERT] CH4 Chili Low Temp
+[CH4][Chili][ALERT] CH4 Low Nutrient Level
+[CH4][Chili][ALERT] CH4 Chili High Temp
+Archiving alerts... 130 moved to archive.
+===== DAILY REPORT =====
+Generated Alerts: 130
+Active Alerts: 0
+Water Usage: 940 L
+Energy Usage: 480 kWh
+System finished sensor processing.
+Archive report saved to: <path>
+##### CONTROL ACTIONS (count per chamber/device) #####
+CH1 Cooling Fan Activated: 8
+CH1 Dehumidifier Activated: 3
+CH1 Grow Light Activated: 2
+CH1 Humidifier Activated: 9
+CH1 Nutrient Injector Activated: 4
+CH1 Water Pump Activated: 8
+CH2 Cooling Fan Activated: 8
+CH2 Dehumidifier Activated: 5
+CH2 Grow Light Activated: 5
+CH2 Humidifier Activated: 8
+CH2 Nutrient Injector Activated: 5
+CH3 Cooling Fan Activated: 7
+CH3 Grow Light Activated: 9
+CH3 Nutrient Injector Activated: 7
+CH4 Cooling Fan Activated: 6
+CH4 Grow Light Activated: 5
+CH4 Nutrient Injector Activated: 5
+##### daily_report.txt #####
+===== DAILY REPORT =====
+Timestamp: <removed>
+Generated Alerts: 130
+Active Alerts: 0
+Water Usage: 940 L
+Energy Usage: 480 kWh
+Archived alerts: 130
+---
+Archived 130 alerts
+Daily Report
+--- chamber wise summary ---
+CH1 -> Alerts=43, Actions=34, Last Action=Humidifier Activated, Last Alert=CH1 Tomato Low Humidity
+CH2 -> Alerts=38, Actions=31, Last Action=Nutrient Injector Activated, Last Alert=CH2 Low Nutrient Level
+CH3 -> Alerts=26, Actions=23, Last Action=Grow Light Activated, Last Alert=CH3 Low Light Level
+CH4 -> Alerts=23, Actions=16, Last Action=Cooling Fan Activated, Last Alert=CH4 Chili High Temp
+--- archived alerts ---
+CH1 Tomato High Temp
+CH1 Tomato Low Humidity
+CH1 Tomato High Temp
+CH1 Tomato Low Humidity
+CH1 Low Nutrient Level
+CH1 Tomato Low Temp
+CH1 Tomato Low Humidity
+CH1 Tomato Low Temp
+CH1 Tomato High Temp
+CH1 Tomato High Humidity
+CH1 Tomato High Temp
+CH1 Tomato Low Humidity
+CH1 Low Nutrient Level
+CH1 Tomato Low Temp
+CH1 Low Light Level
+CH1 Tomato Low Humidity
+CH1 Tomato Low Soil Moisture
+CH1 Tomato High Temp
+CH1 Tomato Low Soil Moisture
+CH1 Tomato High Temp
+CH1 Tomato Low Humidity
+CH1 Tomato Low Temp
+CH1 Tomato Low Humidity
+CH1 Tomato Low Soil Moisture
+CH1 Low Nutrient Level
+CH1 Tomato Low Temp
+CH1 Tomato High Humidity
+CH1 Tomato Low Soil Moisture
+CH1 Low Light Level
+CH1 Tomato Low Temp
+CH1 Tomato High Humidity
+CH1 Tomato Low Soil Moisture
+CH1 Tomato High Temp
+CH1 Low Nutrient Level
+CH1 Tomato Low Temp
+CH1 Tomato Low Soil Moisture
+CH1 Tomato Low Temp
+CH1 Tomato Low Humidity
+CH1 Tomato Low Soil Moisture
+CH1 Tomato High Temp
+CH1 Tomato Low Soil Moisture
+CH1 Tomato Low Temp
+CH1 Tomato Low Humidity
+CH2 Strawberry Low Temp
+CH2 Strawberry Low Temp
+CH2 Strawberry Low Humidity
+CH2 Low Light Level
+CH2 Strawberry High Temp
+CH2 Strawberry Low Humidity
+CH2 Low Light Level
+CH2 Strawberry Low Temp
+CH2 Strawberry High Humidity
+CH2 Strawberry Low Temp
+CH2 Strawberry High Humidity
+CH2 Low Nutrient Level
+CH2 Strawberry Low Humidity
+CH2 Low Light Level
+CH2 Strawberry High Temp
+CH2 Strawberry High Temp
+CH2 Strawberry High Humidity
+CH2 Strawberry High Temp
+CH2 Strawberry Low Humidity
+CH2 Strawberry High Temp
+CH2 Strawberry Low Humidity
+CH2 Low Nutrient Level
+CH2 Strawberry Low Temp
+CH2 Strawberry Low Temp
+CH2 Strawberry High Humidity
+CH2 Low Light Level
+CH2 Strawberry Low Humidity
+CH2 Strawberry High Temp
+CH2 Strawberry Low Humidity
+CH2 Strawberry High Temp
+CH2 Strawberry High Humidity
+CH2 Strawberry Low Temp
+CH2 Low Light Level
+CH2 Low Nutrient Level
+CH2 Low Nutrient Level
+CH2 Strawberry High Temp
+CH2 Strawberry Low Humidity
+CH2 Low Nutrient Level
+CH3 Low Light Level
+CH3 Lettuce Low Temp
+CH3 Low Light Level
+CH3 Low Nutrient Level
+CH3 Lettuce High Temp
+CH3 Low Light Level
+CH3 Low Nutrient Level
+CH3 Lettuce High Temp
+CH3 Lettuce High Temp
+CH3 Low Light Level
+CH3 Low Nutrient Level
+CH3 Lettuce High Temp
+CH3 Low Light Level
+CH3 Lettuce Low Temp
+CH3 Low Nutrient Level
+CH3 Lettuce High Temp
+CH3 Low Light Level
+CH3 Low Nutrient Level
+CH3 Low Light Level
+CH3 Low Light Level
+CH3 Lettuce High Temp
+CH3 Low Nutrient Level
+CH3 Low Nutrient Level
+CH3 Lettuce Low Temp
+CH3 Lettuce High Temp
+CH3 Low Light Level
+CH4 Low Light Level
+CH4 Chili Low Temp
+CH4 Chili Low Temp
+CH4 Low Light Level
+CH4 Low Nutrient Level
+CH4 Chili High Temp
+CH4 Low Light Level
+CH4 Chili Low Temp
+CH4 Chili High Temp
+CH4 Chili Low Temp
+CH4 Low Nutrient Level
+CH4 Chili Low Temp
+CH4 Chili High Temp
+CH4 Low Light Level
+CH4 Chili High Temp
+CH4 Low Nutrient Level
+CH4 Chili High Temp
+CH4 Chili Low Temp
+CH4 Low Light Level
+CH4 Low Nutrient Level
+CH4 Chili Low Temp
+CH4 Low Nutrient Level
+CH4 Chili High Temp

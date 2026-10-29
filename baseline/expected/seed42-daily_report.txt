@@ -1,0 +1,146 @@
+===== DAILY REPORT =====
+Timestamp: Thu Oct 29 16:31:02 GMT+08:00 2026
+Generated Alerts: 130
+Active Alerts: 0
+Water Usage: 940 L
+Energy Usage: 480 kWh
+Archived alerts: 130
+---
+Archived 130 alerts
+Daily Report
+--- chamber wise summary ---
+CH1 -> Alerts=43, Actions=34, Last Action=Humidifier Activated, Last Alert=CH1 Tomato Low Humidity
+CH2 -> Alerts=38, Actions=31, Last Action=Nutrient Injector Activated, Last Alert=CH2 Low Nutrient Level
+CH3 -> Alerts=26, Actions=23, Last Action=Grow Light Activated, Last Alert=CH3 Low Light Level
+CH4 -> Alerts=23, Actions=16, Last Action=Cooling Fan Activated, Last Alert=CH4 Chili High Temp
+--- archived alerts ---
+CH1 Tomato High Temp
+CH1 Tomato Low Humidity
+CH1 Tomato High Temp
+CH1 Tomato Low Humidity
+CH1 Low Nutrient Level
+CH1 Tomato Low Temp
+CH1 Tomato Low Humidity
+CH1 Tomato Low Temp
+CH1 Tomato High Temp
+CH1 Tomato High Humidity
+CH1 Tomato High Temp
+CH1 Tomato Low Humidity
+CH1 Low Nutrient Level
+CH1 Tomato Low Temp
+CH1 Low Light Level
+CH1 Tomato Low Humidity
+CH1 Tomato Low Soil Moisture
+CH1 Tomato High Temp
+CH1 Tomato Low Soil Moisture
+CH1 Tomato High Temp
+CH1 Tomato Low Humidity
+CH1 Tomato Low Temp
+CH1 Tomato Low Humidity
+CH1 Tomato Low Soil Moisture
+CH1 Low Nutrient Level
+CH1 Tomato Low Temp
+CH1 Tomato High Humidity
+CH1 Tomato Low Soil Moisture
+CH1 Low Light Level
+CH1 Tomato Low Temp
+CH1 Tomato High Humidity
+CH1 Tomato Low Soil Moisture
+CH1 Tomato High Temp
+CH1 Low Nutrient Level
+CH1 Tomato Low Temp
+CH1 Tomato Low Soil Moisture
+CH1 Tomato Low Temp
+CH1 Tomato Low Humidity
+CH1 Tomato Low Soil Moisture
+CH1 Tomato High Temp
+CH1 Tomato Low Soil Moisture
+CH1 Tomato Low Temp
+CH1 Tomato Low Humidity
+CH2 Strawberry Low Temp
+CH2 Strawberry Low Temp
+CH2 Strawberry Low Humidity
+CH2 Low Light Level
+CH2 Strawberry High Temp
+CH2 Strawberry Low Humidity
+CH2 Low Light Level
+CH2 Strawberry Low Temp
+CH2 Strawberry High Humidity
+CH2 Strawberry Low Temp
+CH2 Strawberry High Humidity
+CH2 Low Nutrient Level
+CH2 Strawberry Low Humidity
+CH2 Low Light Level
+CH2 Strawberry High Temp
+CH2 Strawberry High Temp
+CH2 Strawberry High Humidity
+CH2 Strawberry High Temp
+CH2 Strawberry Low Humidity
+CH2 Strawberry High Temp
+CH2 Strawberry Low Humidity
+CH2 Low Nutrient Level
+CH2 Strawberry Low Temp
+CH2 Strawberry Low Temp
+CH2 Strawberry High Humidity
+CH2 Low Light Level
+CH2 Strawberry Low Humidity
+CH2 Strawberry High Temp
+CH2 Strawberry Low Humidity
+CH2 Strawberry High Temp
+CH2 Strawberry High Humidity
+CH2 Strawberry Low Temp
+CH2 Low Light Level
+CH2 Low Nutrient Level
+CH2 Low Nutrient Level
+CH2 Strawberry High Temp
+CH2 Strawberry Low Humidity
+CH2 Low Nutrient Level
+CH3 Low Light Level
+CH3 Lettuce Low Temp
+CH3 Low Light Level
+CH3 Low Nutrient Level
+CH3 Lettuce High Temp
+CH3 Low Light Level
+CH3 Low Nutrient Level
+CH3 Lettuce High Temp
+CH3 Lettuce High Temp
+CH3 Low Light Level
+CH3 Low Nutrient Level
+CH3 Lettuce High Temp
+CH3 Low Light Level
+CH3 Lettuce Low Temp
+CH3 Low Nutrient Level
+CH3 Lettuce High Temp
+CH3 Low Light Level
+CH3 Low Nutrient Level
+CH3 Low Light Level
+CH3 Low Light Level
+CH3 Lettuce High Temp
+CH3 Low Nutrient Level
+CH3 Low Nutrient Level
+CH3 Lettuce Low Temp
+CH3 Lettuce High Temp
+CH3 Low Light Level
+CH4 Low Light Level
+CH4 Chili Low Temp
+CH4 Chili Low Temp
+CH4 Low Light Level
+CH4 Low Nutrient Level
+CH4 Chili High Temp
+CH4 Low Light Level
+CH4 Chili Low Temp
+CH4 Chili High Temp
+CH4 Chili Low Temp
+CH4 Low Nutrient Level
+CH4 Chili Low Temp
+CH4 Chili High Temp
+CH4 Low Light Level
+CH4 Chili High Temp
+CH4 Low Nutrient Level
+CH4 Chili High Temp
+CH4 Chili Low Temp
+CH4 Low Light Level
+CH4 Low Nutrient Level
+CH4 Chili Low Temp
+CH4 Low Nutrient Level
+CH4 Chili High Temp

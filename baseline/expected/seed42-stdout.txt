@@ -1,0 +1,346 @@
+[CH1][Tomato][ALERT] CH1 Tomato High Temp
+	[32m[CH1][CONTROL] Cooling Fan Activated[0m
+[CH1][Tomato][ALERT] CH1 Tomato Low Humidity
+[CH1][Tomato][ALERT] CH1 Tomato High Temp
+[CH1][Tomato][ALERT] CH1 Tomato Low Humidity
+[CH1][Tomato][ALERT] CH1 Low Nutrient Level
+[CH1][Tomato][ALERT] CH1 Tomato Low Temp
+[CH1][Tomato][ALERT] CH1 Tomato Low Humidity
+	[32m[CH1][CONTROL] Temperature reduced to 25.0C[0m
+	[32m[CH1][CONTROL] Humidifier Activated[0m
+[CH1][Tomato][ALERT] CH1 Tomato Low Temp
+	[32m[CH1][CONTROL] Humidity increased to 52.0%[0m
+	[32m[CH1][CONTROL] Cooling Fan Activated[0m
+	[32m[CH1][CONTROL] Temperature reduced to 18.0C[0m
+	[32m[CH1][CONTROL] Humidifier Activated[0m
+	[32m[CH1][CONTROL] Humidity increased to 86.0%[0m
+	[32m[CH1][CONTROL] Nutrient Injector Activated[0m
+[CH1][Tomato][ALERT] CH1 Tomato High Temp
+	[32m[CH1][CONTROL] Nutrient level increased to 84.0%[0m
+	[32m[CH1][CONTROL] Humidifier Activated[0m
+	[32m[CH1][CONTROL] Humidity increased to 93.0%[0m
+[CH1][Tomato][ALERT] CH1 Tomato High Humidity
+	[32m[CH1][CONTROL] Cooling Fan Activated[0m
+	[32m[CH1][CONTROL] Temperature reduced to 25.0C[0m
+	[32m[CH1][CONTROL] Dehumidifier Activated[0m
+	[32m[CH1][CONTROL] Humidity reduced to 83.0%[0m
+[CH1][Tomato][ALERT] CH1 Tomato High Temp
+	[32m[CH1][CONTROL] Cooling Fan Activated[0m
+	[32m[CH1][CONTROL] Temperature reduced to 26.0C[0m
+[CH1][Tomato][ALERT] CH1 Tomato Low Humidity
+	[32m[CH1][CONTROL] Humidifier Activated[0m
+	[32m[CH1][CONTROL] Humidity increased to 60.0%[0m
+[CH1][Tomato][ALERT] CH1 Low Nutrient Level
+	[32m[CH1][CONTROL] Nutrient Injector Activated[0m
+	[32m[CH1][CONTROL] Nutrient level increased to 41.0%[0m
+[CH1][Tomato][ALERT] CH1 Tomato Low Temp
+[CH1][Tomato][ALERT] CH1 Low Light Level
+	[32m[CH1][CONTROL] Grow Light Activated[0m
+	[32m[CH1][CONTROL] Light level increased to 635.0 lux[0m
+[CH1][Tomato][ALERT] CH1 Tomato Low Humidity
+	[32m[CH1][CONTROL] Humidifier Activated[0m
+	[32m[CH1][CONTROL] Humidity increased to 62.0%[0m
+[CH1][Tomato][ALERT] CH1 Tomato Low Soil Moisture
+	[32m[CH1][CONTROL] Water Pump Activated[0m
+	[32m[CH1][CONTROL] Soil moisture increased to 53.0%[0m
+[CH1][Tomato][ALERT] CH1 Tomato High Temp
+	[32m[CH1][CONTROL] Cooling Fan Activated[0m
+	[32m[CH1][CONTROL] Temperature reduced to 34.0C[0m
+[CH1][Tomato][ALERT] CH1 Tomato Low Soil Moisture
+	[32m[CH1][CONTROL] Water Pump Activated[0m
+	[32m[CH1][CONTROL] Soil moisture increased to 63.0%[0m
+[CH1][Tomato][ALERT] CH1 Tomato High Temp
+	[32m[CH1][CONTROL] Cooling Fan Activated[0m
+	[32m[CH1][CONTROL] Temperature reduced to 29.0C[0m
+[CH1][Tomato][ALERT] CH1 Tomato Low Humidity
+	[32m[CH1][CONTROL] Humidifier Activated[0m
+	[32m[CH1][CONTROL] Humidity increased to 57.0%[0m
+[CH1][Tomato][ALERT] CH1 Tomato Low Temp
+[CH1][Tomato][ALERT] CH1 Tomato Low Humidity
+	[32m[CH1][CONTROL] Humidifier Activated[0m
+	[32m[CH1][CONTROL] Humidity increased to 63.0%[0m
+[CH1][Tomato][ALERT] CH1 Tomato Low Soil Moisture
+	[32m[CH1][CONTROL] Water Pump Activated[0m
+	[32m[CH1][CONTROL] Soil moisture increased to 59.0%[0m
+[CH1][Tomato][ALERT] CH1 Low Nutrient Level
+	[32m[CH1][CONTROL] Nutrient Injector Activated[0m
+	[32m[CH1][CONTROL] Nutrient level increased to 38.0%[0m
+[CH1][Tomato][ALERT] CH1 Tomato Low Temp
+[CH1][Tomato][ALERT] CH1 Tomato High Humidity
+	[32m[CH1][CONTROL] Dehumidifier Activated[0m
+	[32m[CH1][CONTROL] Humidity reduced to 89.0%[0m
+[CH1][Tomato][ALERT] CH1 Tomato Low Soil Moisture
+	[32m[CH1][CONTROL] Water Pump Activated[0m
+	[32m[CH1][CONTROL] Soil moisture increased to 59.0%[0m
+[CH1][Tomato][ALERT] CH1 Low Light Level
+	[32m[CH1][CONTROL] Grow Light Activated[0m
+	[32m[CH1][CONTROL] Light level increased to 525.0 lux[0m
+[CH1][Tomato][ALERT] CH1 Tomato Low Temp
+[CH1][Tomato][ALERT] CH1 Tomato High Humidity
+	[32m[CH1][CONTROL] Dehumidifier Activated[0m
+[CH1][Tomato][ALERT] CH1 Tomato Low Soil Moisture
+	[32m[CH1][CONTROL] Humidity reduced to 71.0%[0m
+	[32m[CH1][CONTROL] Water Pump Activated[0m
+	[32m[CH1][CONTROL] Soil moisture increased to 53.0%[0m
+[CH1][Tomato][ALERT] CH1 Tomato High Temp
+	[32m[CH1][CONTROL] Cooling Fan Activated[0m
+	[32m[CH1][CONTROL] Temperature reduced to 28.0C[0m
+[CH1][Tomato][ALERT] CH1 Low Nutrient Level
+	[32m[CH1][CONTROL] Nutrient Injector Activated[0m
+	[32m[CH1][CONTROL] Nutrient level increased to 48.0%[0m
+[CH1][Tomato][ALERT] CH1 Tomato Low Temp
+[CH1][Tomato][ALERT] CH1 Tomato Low Soil Moisture
+	[32m[CH1][CONTROL] Water Pump Activated[0m
+	[32m[CH1][CONTROL] Soil moisture increased to 63.0%[0m
+[CH1][Tomato][ALERT] CH1 Tomato Low Temp
+[CH1][Tomato][ALERT] CH1 Tomato Low Humidity
+	[32m[CH1][CONTROL] Humidifier Activated[0m
+	[32m[CH1][CONTROL] Humidity increased to 59.0%[0m
+[CH1][Tomato][ALERT] CH1 Tomato Low Soil Moisture
+	[32m[CH1][CONTROL] Water Pump Activated[0m
+	[32m[CH1][CONTROL] Soil moisture increased to 64.0%[0m
+[CH1][Tomato][ALERT] CH1 Tomato High Temp
+	[32m[CH1][CONTROL] Cooling Fan Activated[0m
+	[32m[CH1][CONTROL] Temperature reduced to 32.0C[0m
+[CH1][Tomato][ALERT] CH1 Tomato Low Soil Moisture
+	[32m[CH1][CONTROL] Water Pump Activated[0m
+	[32m[CH1][CONTROL] Soil moisture increased to 43.0%[0m
+[CH1][Tomato][ALERT] CH1 Tomato Low Temp
+[CH1][Tomato][ALERT] CH1 Tomato Low Humidity
+	[32m[CH1][CONTROL] Humidifier Activated[0m
+	[32m[CH1][CONTROL] Humidity increased to 59.0%[0m
+[CH2][Strawberry][ALERT] CH2 Strawberry Low Temp
+[CH2][Strawberry][ALERT] CH2 Strawberry Low Temp
+[CH2][Strawberry][ALERT] CH2 Strawberry Low Humidity
+	[32m[CH2][CONTROL] Humidifier Activated[0m
+	[32m[CH2][CONTROL] Humidity increased to 59.0%[0m
+[CH2][Strawberry][ALERT] CH2 Low Light Level
+	[32m[CH2][CONTROL] Grow Light Activated[0m
+	[32m[CH2][CONTROL] Light level increased to 625.0 lux[0m
+[CH2][Strawberry][ALERT] CH2 Strawberry High Temp
+	[32m[CH2][CONTROL] Cooling Fan Activated[0m
+[CH2][Strawberry][ALERT] CH2 Strawberry Low Humidity
+	[32m[CH2][CONTROL] Temperature reduced to 31.0C[0m
+	[32m[CH2][CONTROL] Humidifier Activated[0m
+	[32m[CH2][CONTROL] Humidity increased to 54.0%[0m
+[CH2][Strawberry][ALERT] CH2 Low Light Level
+	[32m[CH2][CONTROL] Grow Light Activated[0m
+	[32m[CH2][CONTROL] Light level increased to 601.0 lux[0m
+[CH2][Strawberry][ALERT] CH2 Strawberry Low Temp
+[CH2][Strawberry][ALERT] CH2 Strawberry High Humidity
+	[32m[CH2][CONTROL] Dehumidifier Activated[0m
+	[32m[CH2][CONTROL] Humidity reduced to 76.0%[0m
+[CH2][Strawberry][ALERT] CH2 Strawberry Low Temp
+[CH2][Strawberry][ALERT] CH2 Strawberry High Humidity
+	[32m[CH2][CONTROL] Dehumidifier Activated[0m
+	[32m[CH2][CONTROL] Humidity reduced to 78.0%[0m
+[CH2][Strawberry][ALERT] CH2 Low Nutrient Level
+	[32m[CH2][CONTROL] Nutrient Injector Activated[0m
+	[32m[CH2][CONTROL] Nutrient level increased to 47.0%[0m
+[CH2][Strawberry][ALERT] CH2 Strawberry Low Humidity
+	[32m[CH2][CONTROL] Humidifier Activated[0m
+	[32m[CH2][CONTROL] Humidity increased to 72.0%[0m
+[CH2][Strawberry][ALERT] CH2 Low Light Level
+	[32m[CH2][CONTROL] Grow Light Activated[0m
+	[32m[CH2][CONTROL] Light level increased to 583.0 lux[0m
+[CH2][Strawberry][ALERT] CH2 Strawberry High Temp
+	[32m[CH2][CONTROL] Cooling Fan Activated[0m
+	[32m[CH2][CONTROL] Temperature reduced to 27.0C[0m
+[CH2][Strawberry][ALERT] CH2 Strawberry High Temp
+	[32m[CH2][CONTROL] Cooling Fan Activated[0m
+	[32m[CH2][CONTROL] Temperature reduced to 28.0C[0m
+[CH2][Strawberry][ALERT] CH2 Strawberry High Humidity
+	[32m[CH2][CONTROL] Dehumidifier Activated[0m
+	[32m[CH2][CONTROL] Humidity reduced to 77.0%[0m
+[CH2][Strawberry][ALERT] CH2 Strawberry High Temp
+[CH2][Strawberry][ALERT] CH2 Strawberry Low Humidity
+	[32m[CH2][CONTROL] Cooling Fan Activated[0m
+	[32m[CH2][CONTROL] Temperature reduced to 28.0C[0m
+	[32m[CH2][CONTROL] Humidifier Activated[0m
+	[32m[CH2][CONTROL] Humidity increased to 68.0%[0m
+[CH2][Strawberry][ALERT] CH2 Strawberry High Temp
+	[32m[CH2][CONTROL] Cooling Fan Activated[0m
+	[32m[CH2][CONTROL] Temperature reduced to 24.0C[0m
+[CH2][Strawberry][ALERT] CH2 Strawberry Low Humidity
+	[32m[CH2][CONTROL] Humidifier Activated[0m
+	[32m[CH2][CONTROL] Humidity increased to 70.0%[0m
+[CH2][Strawberry][ALERT] CH2 Low Nutrient Level
+	[32m[CH2][CONTROL] Nutrient Injector Activated[0m
+	[32m[CH2][CONTROL] Nutrient level increased to 36.0%[0m
+[CH2][Strawberry][ALERT] CH2 Strawberry Low Temp
+[CH2][Strawberry][ALERT] CH2 Strawberry Low Temp
+[CH2][Strawberry][ALERT] CH2 Strawberry High Humidity
+	[32m[CH2][CONTROL] Dehumidifier Activated[0m
+	[32m[CH2][CONTROL] Humidity reduced to 80.0%[0m
+[CH2][Strawberry][ALERT] CH2 Low Light Level
+	[32m[CH2][CONTROL] Grow Light Activated[0m
+	[32m[CH2][CONTROL] Light level increased to 479.0 lux[0m
+[CH2][Strawberry][ALERT] CH2 Strawberry Low Humidity
+	[32m[CH2][CONTROL] Humidifier Activated[0m
+	[32m[CH2][CONTROL] Humidity increased to 64.0%[0m
+[CH2][Strawberry][ALERT] CH2 Strawberry High Temp
+	[32m[CH2][CONTROL] Cooling Fan Activated[0m
+	[32m[CH2][CONTROL] Temperature reduced to 26.0C[0m
+[CH2][Strawberry][ALERT] CH2 Strawberry Low Humidity
+	[32m[CH2][CONTROL] Humidifier Activated[0m
+	[32m[CH2][CONTROL] Humidity increased to 62.0%[0m
+[CH2][Strawberry][ALERT] CH2 Strawberry High Temp
+	[32m[CH2][CONTROL] Cooling Fan Activated[0m
+[CH2][Strawberry][ALERT] CH2 Strawberry High Humidity
+	[32m[CH2][CONTROL] Temperature reduced to 31.0C[0m
+	[32m[CH2][CONTROL] Dehumidifier Activated[0m
+	[32m[CH2][CONTROL] Humidity reduced to 79.0%[0m
+[CH2][Strawberry][ALERT] CH2 Strawberry Low Temp
+[CH2][Strawberry][ALERT] CH2 Low Light Level
+	[32m[CH2][CONTROL] Grow Light Activated[0m
+[CH2][Strawberry][ALERT] CH2 Low Nutrient Level
+	[32m[CH2][CONTROL] Light level increased to 642.0 lux[0m
+	[32m[CH2][CONTROL] Nutrient Injector Activated[0m
+	[32m[CH2][CONTROL] Nutrient level increased to 46.0%[0m
+[CH2][Strawberry][ALERT] CH2 Low Nutrient Level
+	[32m[CH2][CONTROL] Nutrient Injector Activated[0m
+[CH2][Strawberry][ALERT] CH2 Strawberry High Temp
+	[32m[CH2][CONTROL] Nutrient level increased to 41.0%[0m
+	[32m[CH2][CONTROL] Cooling Fan Activated[0m
+[CH2][Strawberry][ALERT] CH2 Strawberry Low Humidity
+	[32m[CH2][CONTROL] Temperature reduced to 34.0C[0m
+	[32m[CH2][CONTROL] Humidifier Activated[0m
+	[32m[CH2][CONTROL] Humidity increased to 79.0%[0m
+[CH2][Strawberry][ALERT] CH2 Low Nutrient Level
+	[32m[CH2][CONTROL] Nutrient Injector Activated[0m
+	[32m[CH2][CONTROL] Nutrient level increased to 49.0%[0m
+[CH3][Lettuce][ALERT] CH3 Low Light Level
+	[32m[CH3][CONTROL] Grow Light Activated[0m
+	[32m[CH3][CONTROL] Light level increased to 638.0 lux[0m
+[CH3][Lettuce][ALERT] CH3 Lettuce Low Temp
+[CH3][Lettuce][ALERT] CH3 Low Light Level
+	[32m[CH3][CONTROL] Grow Light Activated[0m
+	[32m[CH3][CONTROL] Light level increased to 598.0 lux[0m
+[CH3][Lettuce][ALERT] CH3 Low Nutrient Level
+	[32m[CH3][CONTROL] Nutrient Injector Activated[0m
+	[32m[CH3][CONTROL] Nutrient level increased to 49.0%[0m
+[CH3][Lettuce][ALERT] CH3 Lettuce High Temp
+	[32m[CH3][CONTROL] Cooling Fan Activated[0m
+	[32m[CH3][CONTROL] Temperature reduced to 30.0C[0m
+[CH3][Lettuce][ALERT] CH3 Low Light Level
+	[32m[CH3][CONTROL] Grow Light Activated[0m
+[CH3][Lettuce][ALERT] CH3 Low Nutrient Level
+	[32m[CH3][CONTROL] Light level increased to 533.0 lux[0m
+	[32m[CH3][CONTROL] Nutrient Injector Activated[0m
+	[32m[CH3][CONTROL] Nutrient level increased to 38.0%[0m
+[CH3][Lettuce][ALERT] CH3 Lettuce High Temp
+	[32m[CH3][CONTROL] Cooling Fan Activated[0m
+	[32m[CH3][CONTROL] Temperature reduced to 28.0C[0m
+[CH3][Lettuce][ALERT] CH3 Lettuce High Temp
+	[32m[CH3][CONTROL] Cooling Fan Activated[0m
+	[32m[CH3][CONTROL] Temperature reduced to 20.0C[0m
+[CH3][Lettuce][ALERT] CH3 Low Light Level
+	[32m[CH3][CONTROL] Grow Light Activated[0m
+	[32m[CH3][CONTROL] Light level increased to 503.0 lux[0m
+[CH3][Lettuce][ALERT] CH3 Low Nutrient Level
+	[32m[CH3][CONTROL] Nutrient Injector Activated[0m
+	[32m[CH3][CONTROL] Nutrient level increased to 45.0%[0m
+[CH3][Lettuce][ALERT] CH3 Lettuce High Temp
+	[32m[CH3][CONTROL] Cooling Fan Activated[0m
+	[32m[CH3][CONTROL] Temperature reduced to 26.0C[0m
+[CH3][Lettuce][ALERT] CH3 Low Light Level
+	[32m[CH3][CONTROL] Grow Light Activated[0m
+	[32m[CH3][CONTROL] Light level increased to 480.0 lux[0m
+[CH3][Lettuce][ALERT] CH3 Lettuce Low Temp
+[CH3][Lettuce][ALERT] CH3 Low Nutrient Level
+	[32m[CH3][CONTROL] Nutrient Injector Activated[0m
+	[32m[CH3][CONTROL] Nutrient level increased to 48.0%[0m
+[CH3][Lettuce][ALERT] CH3 Lettuce High Temp
+	[32m[CH3][CONTROL] Cooling Fan Activated[0m
+	[32m[CH3][CONTROL] Temperature reduced to 20.0C[0m
+[CH3][Lettuce][ALERT] CH3 Low Light Level
+	[32m[CH3][CONTROL] Grow Light Activated[0m
+	[32m[CH3][CONTROL] Light level increased to 465.0 lux[0m
+[CH3][Lettuce][ALERT] CH3 Low Nutrient Level
+	[32m[CH3][CONTROL] Nutrient Injector Activated[0m
+	[32m[CH3][CONTROL] Nutrient level increased to 46.0%[0m
+[CH3][Lettuce][ALERT] CH3 Low Light Level
+	[32m[CH3][CONTROL] Grow Light Activated[0m
+	[32m[CH3][CONTROL] Light level increased to 466.0 lux[0m
+[CH3][Lettuce][ALERT] CH3 Low Light Level
+	[32m[CH3][CONTROL] Grow Light Activated[0m
+	[32m[CH3][CONTROL] Light level increased to 549.0 lux[0m
+[CH3][Lettuce][ALERT] CH3 Lettuce High Temp
+	[32m[CH3][CONTROL] Cooling Fan Activated[0m
+	[32m[CH3][CONTROL] Temperature reduced to 19.0C[0m
+[CH3][Lettuce][ALERT] CH3 Low Nutrient Level
+	[32m[CH3][CONTROL] Nutrient Injector Activated[0m
+	[32m[CH3][CONTROL] Nutrient level increased to 37.0%[0m
+[CH3][Lettuce][ALERT] CH3 Low Nutrient Level
+	[32m[CH3][CONTROL] Nutrient Injector Activated[0m
+	[32m[CH3][CONTROL] Nutrient level increased to 45.0%[0m
+[CH3][Lettuce][ALERT] CH3 Lettuce Low Temp
+[CH3][Lettuce][ALERT] CH3 Lettuce High Temp
+	[32m[CH3][CONTROL] Cooling Fan Activated[0m
+	[32m[CH3][CONTROL] Temperature reduced to 22.0C[0m
+[CH3][Lettuce][ALERT] CH3 Low Light Level
+	[32m[CH3][CONTROL] Grow Light Activated[0m
+	[32m[CH3][CONTROL] Light level increased to 491.0 lux[0m
+[CH4][Chili][ALERT] CH4 Low Light Level
+	[32m[CH4][CONTROL] Grow Light Activated[0m
+	[32m[CH4][CONTROL] Light level increased to 516.0 lux[0m
+[CH4][Chili][ALERT] CH4 Chili Low Temp
+[CH4][Chili][ALERT] CH4 Chili Low Temp
+[CH4][Chili][ALERT] CH4 Low Light Level
+	[32m[CH4][CONTROL] Grow Light Activated[0m
+	[32m[CH4][CONTROL] Light level increased to 555.0 lux[0m
+[CH4][Chili][ALERT] CH4 Low Nutrient Level
+	[32m[CH4][CONTROL] Nutrient Injector Activated[0m
+	[32m[CH4][CONTROL] Nutrient level increased to 35.0%[0m
+[CH4][Chili][ALERT] CH4 Chili High Temp
+	[32m[CH4][CONTROL] Cooling Fan Activated[0m
+	[32m[CH4][CONTROL] Temperature reduced to 32.0C[0m
+[CH4][Chili][ALERT] CH4 Low Light Level
+[CH4][Chili][ALERT] CH4 Chili Low Temp
+[CH4][Chili][ALERT] CH4 Chili High Temp
+	[32m[CH4][CONTROL] Grow Light Activated[0m
+	[32m[CH4][CONTROL] Light level increased to 937.0 lux[0m
+	[32m[CH4][CONTROL] Cooling Fan Activated[0m
+	[32m[CH4][CONTROL] Temperature reduced to 31.0C[0m
+[CH4][Chili][ALERT] CH4 Chili Low Temp
+[CH4][Chili][ALERT] CH4 Low Nutrient Level
+	[32m[CH4][CONTROL] Nutrient Injector Activated[0m
+[CH4][Chili][ALERT] CH4 Chili Low Temp
+	[32m[CH4][CONTROL] Nutrient level increased to 46.0%[0m
+[CH4][Chili][ALERT] CH4 Chili High Temp
+	[32m[CH4][CONTROL] Cooling Fan Activated[0m
+	[32m[CH4][CONTROL] Temperature reduced to 29.0C[0m
+[CH4][Chili][ALERT] CH4 Low Light Level
+	[32m[CH4][CONTROL] Grow Light Activated[0m
+	[32m[CH4][CONTROL] Light level increased to 606.0 lux[0m
+[CH4][Chili][ALERT] CH4 Chili High Temp
+	[32m[CH4][CONTROL] Cooling Fan Activated[0m
+	[32m[CH4][CONTROL] Temperature reduced to 28.0C[0m
+[CH4][Chili][ALERT] CH4 Low Nutrient Level
+	[32m[CH4][CONTROL] Nutrient Injector Activated[0m
+	[32m[CH4][CONTROL] Nutrient level increased to 51.0%[0m
+[CH4][Chili][ALERT] CH4 Chili High Temp
+	[32m[CH4][CONTROL] Cooling Fan Activated[0m
+	[32m[CH4][CONTROL] Temperature reduced to 29.0C[0m
+[CH4][Chili][ALERT] CH4 Chili Low Temp
+[CH4][Chili][ALERT] CH4 Low Light Level
+	[32m[CH4][CONTROL] Grow Light Activated[0m
+[CH4][Chili][ALERT] CH4 Low Nutrient Level
+	[32m[CH4][CONTROL] Light level increased to 595.0 lux[0m
+	[32m[CH4][CONTROL] Nutrient Injector Activated[0m
+	[32m[CH4][CONTROL] Nutrient level increased to 37.0%[0m
+[CH4][Chili][ALERT] CH4 Chili Low Temp
+[CH4][Chili][ALERT] CH4 Low Nutrient Level
+	[32m[CH4][CONTROL] Nutrient Injector Activated[0m
+	[32m[CH4][CONTROL] Nutrient level increased to 50.0%[0m
+[CH4][Chili][ALERT] CH4 Chili High Temp
+	[32m[CH4][CONTROL] Cooling Fan Activated[0m
+	[32m[CH4][CONTROL] Temperature reduced to 31.0C[0m
+Archiving alerts... 130 moved to archive.
+===== DAILY REPORT =====
+Generated Alerts: 130
+Active Alerts: 0
+Water Usage: 940 L
+Energy Usage: 480 kWh
+System finished sensor processing.
+Archive report saved to: /private/var/folders/pg/lbhp89v53lx8b3_0f7n63xc40000gn/T/tmp.wsLZegW76T/det1/archive/daily_report.txt
