@@ -1,0 +1,14 @@
+# Crop growth profiles. One row per crop; add or delete a row to add or remove a crop.
+# Units: temperature C, humidity %, soil moisture %, light lux, nutrient %.
+name,tempMin,tempMax,humidityMin,humidityMax,soilMin,soilMax,lightMin,lightMax,nutrientMin,nutrientMax
+Tomato,22,28,60,80,45,60,500,1000,40,90
+Strawberry,18,24,70,85,50,65,500,900,40,90
+Lettuce,15,21,65,85,55,75,400,800,40,85
+Spinach,10,20,60,80,50,70,400,800,40,85
+Chili,24,32,55,75,45,60,600,1000,40,90
+Cucumber,18,27,70,90,60,80,500,1000,40,90
+# Crops added for the expansion (spec 4.5) - data only, no code changes.
+Kale,15,24,60,80,55,75,400,850,40,85
+Bell Pepper,21,29,60,75,50,65,600,1000,45,90
+Bok Choy,15,22,65,85,55,75,400,800,40,85
+Eggplant,22,30,60,80,50,70,600,1000,45,90

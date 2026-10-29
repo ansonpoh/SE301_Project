@@ -1,0 +1,7 @@
+# Which crop each growing chamber holds.
+chamber,crop
+CH1,Tomato
+CH2,Strawberry
+CH3,Lettuce
+CH4,Chili
+CH5,Kale
