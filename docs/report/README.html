@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SVFRMS Refactoring Report</title>
+<style>
+  @page { size: A4; margin: 15mm 16mm 15mm 16mm; }
+  :root { --ink:#1d2433; --muted:#5b6475; --line:#c9cfdb; --accent:#1f6f5c; --soft:#eef5f2; --code:#f4f5f7; }
+  * { box-sizing: border-box; }
+  body { font-family: "Segoe UI", Arial, sans-serif; font-size: 9.6pt; line-height: 1.42; color: var(--ink); background:#fff; margin:0; }
+  h1 { page-break-after: avoid; break-after: avoid; font-size: 15pt; color: var(--accent); margin: 0 0 6px; padding-bottom: 3px; border-bottom: 2px solid var(--accent); }
+  h2 { page-break-after: avoid; break-after: avoid; font-size: 11pt; margin: 12px 0 4px; }
+  p { margin: 4px 0 6px; }
+  ul { margin: 3px 0 6px; padding-left: 18px; }
+  li { margin: 1px 0; }
+  code { font-family: Consolas, monospace; font-size: 8.6pt; background: var(--code); padding: 0 3px; border-radius: 3px; }
+  pre { font-family: Consolas, monospace; font-size: 8.2pt; background: var(--code); border-left: 3px solid var(--line); padding: 5px 8px; margin: 4px 0 8px; white-space: pre-wrap; line-height: 1.3; }
+  table { width: 100%; border-collapse: collapse; margin: 4px 0 8px; font-size: 8.7pt; page-break-inside: auto; }
+  tr { page-break-inside: avoid; }
+  th, td { border: 1px solid var(--line); padding: 3px 6px; vertical-align: top; text-align: left; }
+  th { background: var(--soft); }
+  .section { page-break-before: always; }
+  .keep { page-break-inside: avoid; }
+  .note { background: var(--soft); border-left: 3px solid var(--accent); padding: 5px 8px; margin: 6px 0; }
+  figure { margin: 6px 0 8px; page-break-inside: avoid; }
+  figcaption { font-size: 8.5pt; color: var(--muted); text-align: center; margin-top: 2px; }
+  svg { width: 100%; height: auto; display: block; }
+  svg text { font-family: "Segoe UI", Arial, sans-serif; }
+
+  /* Cover */
+  .cover { height: 262mm; display: flex; flex-direction: column; justify-content: center; text-align: center; page-break-after: always; }
+  .cover .kicker { color: var(--muted); font-size: 11pt; letter-spacing: .08em; text-transform: uppercase; }
+  .cover .title { font-size: 24pt; font-weight: 700; color: var(--accent); margin: 10px 0 4px; }
+  .cover .subtitle { font-size: 13pt; margin-bottom: 40px; }
+  .cover table { width: 60%; margin: 0 auto; font-size: 11pt; }
+  .cover td { padding: 7px 10px; }
+  .fill { color: #b00020; }
+</style>
+</head>
+<body>
+
+<!-- ===================== COVER ===================== -->
+<div class="cover">
+  <div class="kicker">SE301 Advanced Programming and Design &middot; Project 2026-27</div>
+  <div class="title">Singapore Vertical Farming Research Management System</div>
+  <div class="subtitle">Legacy Refactoring &amp; Modernisation Report (README)</div>
+  <table>
+    <tr><th>Group</th><td class="fill">[Group number]</td></tr>
+    <tr><th>Member 1</th><td class="fill">[Full name]</td></tr>
+    <tr><th>Member 2</th><td class="fill">[Full name]</td></tr>
+    <tr><th>Member 3</th><td class="fill">[Full name]</td></tr>
+  </table>
+</div>
+
+<!-- ===================== 1. LEGACY ANALYSIS ===================== -->
+<h1>1. Legacy System Analysis</h1>
+<p>SVFRMS runs an indoor vertical farm. Each growing chamber holds one crop. The system reads the chamber's sensors
+(temperature, humidity, soil moisture, light and nutrients), compares the readings with what the crop needs,
+raises alerts when something is wrong, switches on devices such as fans and pumps to fix it, and writes a report
+at the end of the day.</p>
+<p>The program we were given is one Java class, <code>SVFRMS</code> (393 lines). Its main parts are:</p>
+<table>
+  <tr><th style="width:24%">Part</th><th>What it does in the legacy code</th></tr>
+  <tr><td>Crop rules</td><td><code>processSensor()</code> holds every crop's limits as hard-coded <code>if</code> statements.</td></tr>
+  <tr><td>Chamber simulation</td><td>Four <code>ChamberThread</code>s (Tomato, Strawberry, Lettuce, Chili) each produce 20 rounds of random readings.</td></tr>
+  <tr><td>Device control</td><td><code>addControlRequest()</code> puts <code>"CH1|Cooling Fan"</code> strings on a shared list; one <code>ControlThread</code> takes them off and calls <code>activateControl()</code>.</td></tr>
+  <tr><td>Alerts and logging</td><td><code>handleEvent(type, ...)</code> uses a string <code>type</code> (<code>"LOG"</code>, <code>"CREATE_ALERT"</code>, <code>"TRACK_ACTION"</code>...) to decide what to do.</td></tr>
+  <tr><td>Reports</td><td><code>generateDailyReport()</code> and <code>archiveAlerts()</code> run on two threads; <code>saveArchiveReport()</code> writes <code>archive/daily_report.txt</code>.</td></tr>
+  <tr><td>Shared data</td><td>Everything lives in <code>public static</code> fields: lists, maps, counters and lock objects.</td></tr>
+</table>
+
+<!-- ===================== 2. CODE ANALYSIS ===================== -->
+<h1>2. Code Analysis and Limitations</h1>
+<h2>2.1 Design problems</h2>
+<table>
+  <tr><th style="width:22%">Problem</th><th>Example from the legacy code</th><th style="width:15%">Principle broken</th></tr>
+  <tr><td>One class does everything</td><td>Sensor logic, rules, devices, threads, alerts, reports and file writing are all in <code>SVFRMS</code>. A change to the report format and a change to a crop limit both edit the same file.</td><td>SRP</td></tr>
+  <tr><td>Crop limits are code</td><td><code>if(crop.equals("Tomato")){ if(value&gt;28){...} if(value&lt;22){...} } else if(crop.equals("Strawberry")) ...</code><br>Adding Kale means editing <code>processSensor()</code> in several places.</td><td>OCP</td></tr>
+  <tr><td>Copy-pasted blocks</td><td>The same line <code>handleEvent("TRACK_ALERT"...); handleEvent("CREATE_ALERT"...); addControlRequest(...)</code> appears about 25 times with only the text changed.</td><td>DRY</td></tr>
+  <tr><td>String "flag" arguments</td><td><code>handleEvent("CREATE_ALERT", ...)</code> and <code>activateControl(chamber, "Cooling Fan")</code> switch on strings. A typo compiles but silently does nothing.</td><td>OCP, flag-argument smell</td></tr>
+  <tr><td>Global mutable state</td><td><code>public static ArrayList&lt;String&gt; alerts</code>, <code>public static int totalWaterUsage</code>... Any class can change anything, and tests cannot run in isolation.</td><td>Information hiding, DIP</td></tr>
+  <tr><td>Depends on concrete classes</td><td><code>new Random()</code>, <code>System.out</code> and <code>Files</code> are used directly inside the logic, so nothing can be replaced (for example with a test stub).</td><td>DIP</td></tr>
+  <tr><td>Inheritance used for threads</td><td><code>ChamberThread extends Thread</code>: the task is tied to how it runs and inherits many methods it never uses. A <code>Runnable</code>/<code>Callable</code> run by an executor is simpler.</td><td>Composition over inheritance</td></tr>
+  <tr><td>Rules do not match the spec</td><td>Only Tomato has a soil rule; only Tomato and Strawberry have humidity rules; light and nutrient limits ignore the crop; Spinach and Cucumber rules exist but never run. No alert severity; Heating Unit, Ventilation and Shade Controller are missing; only 1 of the 5 reports exists.</td><td>Hidden by duplication</td></tr>
+  <tr><td>Dead code and swallowed errors</td><td><code>waterPumpLock</code>, <code>nutrientLock</code>, <code>irrigationCycle()</code>, <code>feedingCycle()</code>, <code>showAlerts()</code> are never used. <code>catch(Exception e){}</code> hides interrupts.</td><td>Clean code</td></tr>
+</table>
+<p><b>Spec questions (4.2):</b> (i) yes, one class has many unrelated jobs; (ii) yes, every new crop needs code changes;
+(iii) there is no Square/Rectangle-style LSP break, but extending <code>Thread</code> is inheritance that is not needed;
+(iv) the class's huge static API, and <code>handleEvent</code> doing six jobs in one method, should be split;
+(v) everything depends on concrete classes.</p>
+
+<h2>2.2 Concurrency problems</h2>
+<table>
+  <tr><th style="width:5%">#</th><th style="width:30%">Problem</th><th>Why it goes wrong</th></tr>
+  <tr><td>C1</td><td>Shared counters, e.g. <code>totalWaterUsage += 2</code></td><td><code>+=</code> is read, add, write. Two threads can read the same old value and one update is lost.</td></tr>
+  <tr><td>C2</td><td><code>ArrayList</code> written by many threads (<code>alerts</code>, <code>sensorLogs</code>)</td><td><code>ArrayList</code> is not thread-safe. When we ran the legacy code, a chamber thread crashed with <code>ArrayIndexOutOfBoundsException</code> inside <code>sensorLogs.add()</code> and that chamber stopped being monitored.</td></tr>
+  <tr><td>C3</td><td>Check-then-act on <code>HashMap</code> in <code>getChamberState()</code></td><td><code>if(!containsKey) put(...)</code>: two threads can both see "missing" and create two different objects.</td></tr>
+  <tr><td>C4</td><td><code>ChamberState</code> fields</td><td>The chamber thread writes new readings while the control thread does <code>temperature - 5</code> on the same fields, with no lock.</td></tr>
+  <tr><td>C5</td><td><code>ChamberSummary</code> counters</td><td><code>summary.alerts++</code> runs on several threads with no lock.</td></tr>
+  <tr><td>C6</td><td>Nested locks <code>alertLock</code> then <code>reportLock</code></td><td>Holding two locks at once is the setup for a deadlock: if any code takes them in the other order, both threads wait forever.</td></tr>
+  <tr><td>C7</td><td>Report and archive threads race</td><td>The two threads start together, so "Active Alerts" in the report changes from run to run.</td></tr>
+  <tr><td>C8</td><td>Hand-made <code>wait()/notifyAll()</code> queue</td><td>Interrupts are swallowed, and if the control thread dies the chamber threads block forever on a full queue.</td></tr>
+</table>
+
+<!-- ===================== 3. PROPOSED DESIGN ===================== -->
+<h1>3. Proposed Design</h1>
+<p>The goal is to keep what the system does but make it easy to change. The key changes are:</p>
+<ul>
+  <li><b>Split by responsibility.</b> The monolith became 12 small packages (52 classes). Each class has one job, so a change touches one place.</li>
+  <li><b>Crops are data, not code.</b> Crop limits live in <code>crops.csv</code> and chamber assignments in <code>chambers.csv</code>. A <code>CropProfile</code> must have a range for every sensor.</li>
+  <li><b>One rule instead of 25 copies.</b> A single <code>ThresholdRule</code> reads the limit from the crop profile, so it never names a crop. A <code>SensorFailureRule</code> catches impossible readings.</li>
+  <li><b>Devices are objects.</b> Each <code>Device</code> knows its effect (e.g. Cooling Fan: temperature &minus;5, not below 18&nbsp;C) and its resource cost. No more <code>if(control.equals(...))</code>.</li>
+  <li><b>Events instead of a string switch.</b> Alerts and device activations are published on an <code>EventBus</code>. Storing, counting and printing are separate listeners.</li>
+  <li><b>No global state.</b> Each <code>FarmSystem</code> owns its own stores, so tests can create one, run it and check it.</li>
+  <li><b>Thread-safe by design.</b> Shared data is either immutable or guarded inside its own class. Threads are run by an <code>ExecutorService</code>.</li>
+</ul>
+<p><b>Behaviour aligned with the specification.</b> We kept every legacy feature but fixed the places where the
+legacy code did not follow the spec: every crop now uses all five ranges; alerts have INFO / WARNING / CRITICAL
+severity (based on how far the value is outside the range); low temperature starts the Heating Unit, high light starts
+the Shade Controller, high humidity starts the Dehumidifier and Ventilation System; impossible readings raise a
+Sensor Failure alert; and all five reports are produced. Water, energy and nutrient use is now counted when a
+device actually runs.</p>
+
+<h2>3.1 How SOLID is applied</h2>
+<table>
+  <tr><th style="width:8%">Principle</th><th>Where it shows in the new code</th></tr>
+  <tr><td>SRP</td><td><code>AlertStore</code> only stores alerts, <code>ConsoleEventPrinter</code> only prints, <code>ArchiveReportWriter</code> only writes the file, <code>ResourceMeter</code> only counts usage.</td></tr>
+  <tr><td>OCP</td><td>New crop = new CSV row. New device, rule or report = new class registered in one list (<code>StandardDevices</code>, <code>StandardRules</code>, <code>ReportGenerator</code>). Existing classes are not edited.</td></tr>
+  <tr><td>LSP</td><td>Every <code>SensorRule</code>, <code>Device</code> and <code>Report</code> follows its interface fully, so any of them can be swapped in. Threads now use <code>Callable</code>/<code>Runnable</code> instead of extending <code>Thread</code>.</td></tr>
+  <tr><td>ISP</td><td>Small interfaces: <code>SensorSource</code> and <code>SensorRule</code> have one method; <code>CropRepository</code> is read-only. Event listeners are plain <code>Consumer</code>s, so each listener only handles the event it needs.</td></tr>
+  <tr><td>DIP</td><td><code>ChamberMonitor</code> depends on <code>SensorSource</code>, <code>RuleEngine</code> and <code>Device</code> abstractions. Only <code>Main</code> picks the concrete classes and passes them in.</td></tr>
+</table>
+
+<!-- ===================== 4. FINAL ARCHITECTURE ===================== -->
+<h1>4. Final Architecture</h1>
+<figure>
+<svg viewBox="0 0 720 452" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Component diagram">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#5b6475"/>
+    </marker>
+  </defs>
+  <style>
+    .b{fill:#fff;stroke:#1f6f5c;stroke-width:1.4}
+    .g{fill:#eef5f2;stroke:#9cc3b6;stroke-width:1;stroke-dasharray:4 3}
+    .t{font-size:11px;fill:#1d2433;text-anchor:middle}
+    .s{font-size:9px;fill:#5b6475;text-anchor:middle}
+    .gl{font-size:10px;fill:#1f6f5c;font-weight:600}
+    .l{stroke:#5b6475;stroke-width:1.2;fill:none;marker-end:url(#arr)}
+    .lt{font-size:9px;fill:#5b6475;paint-order:stroke;stroke:#fff;stroke-width:3px}
+  </style>
+
+  <!-- groups -->
+  <rect class="g" x="8" y="4" width="196" height="110" rx="8"/><text class="gl" x="16" y="18">config / crop</text>
+  <rect class="g" x="8" y="140" width="290" height="160" rx="8"/><text class="gl" x="16" y="154">simulation + rule (N threads)</text>
+  <rect class="g" x="312" y="140" width="400" height="160" rx="8"/><text class="gl" x="320" y="154">control + device (1 thread)</text>
+  <rect class="g" x="8" y="318" width="704" height="128" rx="8"/><text class="gl" x="16" y="332">event + alert + metrics</text>
+  <rect class="g" x="516" y="4" width="196" height="110" rx="8"/><text class="gl" x="524" y="18">report</text>
+
+  <!-- config -->
+  <rect class="b" x="20" y="26" width="172" height="34" rx="5"/><text class="t" x="106" y="42">ChamberLayout</text><text class="s" x="106" y="54">reads chambers.csv</text>
+  <rect class="b" x="20" y="72" width="172" height="34" rx="5"/><text class="t" x="106" y="88">CropRepository</text><text class="s" x="106" y="100">CsvCropRepository &#8592; crops.csv</text>
+
+  <!-- app -->
+  <rect class="b" x="270" y="12" width="180" height="34" rx="5"/><text class="t" x="360" y="28">Main</text><text class="s" x="360" y="40">composition root (wires everything)</text>
+  <rect class="b" x="270" y="76" width="180" height="34" rx="5"/><text class="t" x="360" y="92">FarmSystem &#171;facade&#187;</text><text class="s" x="360" y="104">runs threads, archive, snapshot</text>
+
+  <!-- report -->
+  <rect class="b" x="528" y="26" width="172" height="34" rx="5"/><text class="t" x="614" y="42">ReportGenerator</text><text class="s" x="614" y="54">5 &#171;Report&#187; implementations</text>
+  <rect class="b" x="528" y="72" width="172" height="34" rx="5"/><text class="t" x="614" y="88">ArchiveReportWriter</text><text class="s" x="614" y="100">archive/daily_report.txt</text>
+
+  <!-- simulation -->
+  <rect class="b" x="40" y="164" width="226" height="36" rx="5"/><text class="t" x="153" y="181">ChamberMonitor &#215; N</text><text class="s" x="153" y="193">Callable, one per chamber</text>
+  <rect class="b" x="20" y="252" width="130" height="36" rx="5"/><text class="s" x="85" y="265">&#171;interface&#187;</text><text class="t" x="85" y="280">SensorSource</text>
+  <rect class="b" x="160" y="252" width="128" height="36" rx="5"/><text class="t" x="224" y="268">RuleEngine</text><text class="s" x="224" y="280">&#171;SensorRule&#187; list</text>
+
+  <!-- control -->
+  <rect class="b" x="326" y="164" width="150" height="36" rx="5"/><text class="t" x="401" y="181">ControlQueue</text><text class="s" x="401" y="193">bounded blocking queue</text>
+  <rect class="b" x="540" y="164" width="160" height="36" rx="5"/><text class="t" x="620" y="181">ControlWorker</text><text class="s" x="620" y="193">consumer thread</text>
+  <rect class="b" x="540" y="252" width="160" height="36" rx="5"/><text class="s" x="620" y="265">&#171;interface&#187;</text><text class="t" x="620" y="280">Device</text>
+  <rect class="b" x="326" y="252" width="150" height="36" rx="5"/><text class="t" x="401" y="268">ChamberState</text><text class="s" x="401" y="280">guarded by own lock</text>
+
+  <!-- events -->
+  <rect class="b" x="250" y="342" width="220" height="34" rx="5"/><text class="t" x="360" y="358">EventBus&lt;Alert&gt; / EventBus&lt;Activation&gt;</text><text class="s" x="360" y="370">observer: publish to listeners</text>
+  <rect class="b" x="20" y="400" width="160" height="34" rx="5"/><text class="t" x="100" y="416">AlertStore</text><text class="s" x="100" y="428">active + archived alerts</text>
+  <rect class="b" x="196" y="400" width="160" height="34" rx="5"/><text class="t" x="276" y="416">ChamberActivityTracker</text><text class="s" x="276" y="428">alerts/actions per chamber</text>
+  <rect class="b" x="372" y="400" width="160" height="34" rx="5"/><text class="t" x="452" y="416">ConsoleEventPrinter</text><text class="s" x="452" y="428">operator console</text>
+  <rect class="b" x="548" y="400" width="152" height="34" rx="5"/><text class="t" x="624" y="416">ResourceMeter</text><text class="s" x="624" y="428">atomic usage counters</text>
+
+  <!-- arrows -->
+  <path class="l" d="M270,34 L193,40"/>
+  <path class="l" d="M106,60 L106,71"/>
+  <path class="l" d="M360,46 L360,75"/>
+  <path class="l" d="M450,28 L527,40"/><text class="lt" x="468" y="26">render</text>
+  <path class="l" d="M450,93 L527,89"/><text class="lt" x="466" y="86">snapshot</text>
+  <path class="l" d="M320,110 L200,163"/>
+  <path class="l" d="M410,110 L600,163"/>
+  <path class="l" d="M110,200 L88,251"/><text class="lt" x="60" y="228">read</text>
+  <path class="l" d="M190,200 L218,251"/><text class="lt" x="210" y="228">evaluate</text>
+  <path class="l" d="M266,182 L325,182"/><text class="lt" x="270" y="176">submit</text>
+  <path class="l" d="M476,182 L539,182"/><text class="lt" x="490" y="176">take</text>
+  <path class="l" d="M620,200 L620,251"/><text class="lt" x="626" y="228">operate</text>
+  <path class="l" d="M540,270 L477,270"/><text class="lt" x="490" y="264">adjust</text>
+  <path class="l" d="M240,200 C300,230 320,250 325,262"/><text class="lt" x="268" y="240">record</text>
+  <path class="l" d="M153,200 C150,330 220,350 249,356"/><text class="lt" x="150" y="320">Alert</text>
+  <path class="l" d="M600,200 C560,320 500,350 471,356"/><text class="lt" x="548" y="316">Activation</text>
+  <path class="l" d="M300,376 L120,399"/>
+  <path class="l" d="M330,376 L285,399"/>
+  <path class="l" d="M390,376 L440,399"/>
+  <path class="l" d="M680,288 L660,399"/><text class="lt" x="676" y="350">usage</text>
+</svg>
+<figcaption>Figure 1 &ndash; Component diagram. Arrows show "uses / sends to".</figcaption>
+</figure>
+
+<table>
+  <tr><th style="width:16%">Package</th><th>Contents</th></tr>
+  <tr><td><code>model</code></td><td><code>Range</code>, <code>SensorType</code>, <code>SensorReading</code>, <code>CropProfile</code> (immutable), <code>Chamber</code>, <code>ChamberState</code> (thread-safe)</td></tr>
+  <tr><td><code>config</code>, <code>crop</code></td><td><code>CsvFile</code> (one shared CSV reader), <code>ChamberLayout</code>, <code>CropRepository</code> + <code>CsvCropRepository</code></td></tr>
+  <tr><td><code>rule</code></td><td><code>SensorRule</code>, <code>ThresholdRule</code>, <code>SensorFailureRule</code>, <code>SeverityPolicy</code>, <code>RuleEngine</code>, <code>StandardRules</code></td></tr>
+  <tr><td><code>device</code>, <code>control</code></td><td><code>Device</code>, <code>EnvironmentalDevice</code>, <code>Effect</code>, <code>StandardDevices</code>; <code>ControlRequest</code>, <code>ControlQueue</code>, <code>ControlWorker</code>, <code>Activation</code></td></tr>
+  <tr><td><code>event</code>, <code>alert</code>, <code>metrics</code></td><td><code>EventBus</code>; <code>Alert</code>, <code>AlertType</code>, <code>Severity</code>, <code>AlertStore</code>; <code>ResourceMeter</code>, <code>ChamberActivityTracker</code>, <code>ReadingStatistics</code></td></tr>
+  <tr><td><code>simulation</code>, <code>report</code>, <code>app</code></td><td><code>SensorSource</code>, <code>RandomSensorSource</code>, <code>ChamberMonitor</code>; five reports, <code>ReportGenerator</code>, <code>ArchiveReportWriter</code>; <code>Main</code>, <code>FarmSystem</code>, <code>ConsoleEventPrinter</code></td></tr>
+</table>
+
+<figure>
+<svg viewBox="0 0 720 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Sequence diagram">
+  <defs>
+    <marker id="sa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#1d2433"/>
+    </marker>
+  </defs>
+  <style>
+    .p{fill:#eef5f2;stroke:#1f6f5c;stroke-width:1.2}
+    .pt{font-size:10px;fill:#1d2433;text-anchor:middle;font-weight:600}
+    .ll{stroke:#9aa3b2;stroke-width:1;stroke-dasharray:4 3}
+    .m{stroke:#1d2433;stroke-width:1.1;fill:none;marker-end:url(#sa)}
+    .r{stroke:#5b6475;stroke-width:1;fill:none;stroke-dasharray:3 3;marker-end:url(#sa)}
+    .mt{font-size:9.5px;fill:#1d2433;paint-order:stroke;stroke:#fff;stroke-width:3px}
+    .sn{font-size:9px;fill:#5b6475;font-style:italic}
+  </style>
+  <!-- participants at x = 55,155,255,360,470,580,670 -->
+  <g>
+    <rect class="p" x="10" y="6" width="90" height="26" rx="4"/><text class="pt" x="55" y="23">ChamberMonitor</text>
+    <rect class="p" x="110" y="6" width="90" height="26" rx="4"/><text class="pt" x="155" y="23">SensorSource</text>
+    <rect class="p" x="210" y="6" width="90" height="26" rx="4"/><text class="pt" x="255" y="23">RuleEngine</text>
+    <rect class="p" x="315" y="6" width="90" height="26" rx="4"/><text class="pt" x="360" y="23">EventBus</text>
+    <rect class="p" x="425" y="6" width="90" height="26" rx="4"/><text class="pt" x="470" y="23">ControlQueue</text>
+    <rect class="p" x="535" y="6" width="90" height="26" rx="4"/><text class="pt" x="580" y="23">ControlWorker</text>
+    <rect class="p" x="635" y="6" width="80" height="26" rx="4"/><text class="pt" x="675" y="23">Device</text>
+  </g>
+  <line class="ll" x1="55" y1="32" x2="55" y2="292"/>
+  <line class="ll" x1="155" y1="32" x2="155" y2="292"/>
+  <line class="ll" x1="255" y1="32" x2="255" y2="292"/>
+  <line class="ll" x1="360" y1="32" x2="360" y2="292"/>
+  <line class="ll" x1="470" y1="32" x2="470" y2="292"/>
+  <line class="ll" x1="580" y1="32" x2="580" y2="292"/>
+  <line class="ll" x1="675" y1="32" x2="675" y2="292"/>
+
+  <path class="m" d="M55,54 L153,54"/><text class="mt" x="62" y="50">1: read(chamber, type)</text>
+  <path class="r" d="M155,70 L57,70"/><text class="mt" x="80" y="66">value</text>
+  <path class="m" d="M55,92 L253,92"/><text class="mt" x="110" y="88">2: evaluate(reading, crop)</text>
+  <path class="r" d="M255,108 L57,108"/><text class="mt" x="120" y="104">list of Violation</text>
+  <path class="m" d="M55,130 L358,130"/><text class="mt" x="150" y="126">3: publish(Alert) &#8594; store, tracker, console</text>
+  <path class="m" d="M55,152 L468,152"/><text class="mt" x="190" y="148">4: submit(ControlRequest) &#8212; waits if queue is full</text>
+  <text class="sn" x="62" y="172">monitor continues with the next sensor (steps 1&#8211;4 repeat)</text>
+
+  <path class="m" d="M580,196 L472,196"/><text class="mt" x="490" y="192">5: take()</text>
+  <path class="r" d="M470,212 L578,212"/><text class="mt" x="490" y="226">ControlRequest</text>
+  <path class="m" d="M580,240 L673,240"/><text class="mt" x="588" y="236">6: operate(state)</text>
+  <path class="m" d="M580,266 L362,266"/><text class="mt" x="400" y="262">7: publish(Activation)</text>
+  <text class="sn" x="380" y="288">worker thread runs independently of monitor threads</text>
+</svg>
+<figcaption>Figure 2 &ndash; Sequence diagram: from one sensor reading to a device running.</figcaption>
+</figure>
+<p><b>How a run works.</b> <code>Main</code> loads the crops and chambers and builds a <code>FarmSystem</code>. <code>FarmSystem</code>
+starts one <code>ControlWorker</code> and one <code>ChamberMonitor</code> per chamber on a thread pool. Monitors read
+sensors, check rules, publish alerts and queue device requests (Figure 2). When every monitor has finished,
+<code>FarmSystem</code> closes the queue, waits for the worker to finish the remaining requests, then archives the alerts.
+Finally a read-only <code>FarmSnapshot</code> is taken and passed to the five reports and the archive writer. These steps run
+one after another, so the report is always consistent.</p>
+
+<!-- ===================== 5. CONCURRENCY FIXES ===================== -->
+<h1>5. Concurrency Fixes</h1>
+<table>
+  <tr><th style="width:5%">#</th><th>Fix</th><th style="width:22%">Where</th></tr>
+  <tr><td>C1</td><td>Counters are <code>AtomicLong</code>s kept in a <code>ConcurrentHashMap</code>. <code>addAndGet</code> is one atomic step, so no update is lost.</td><td><code>ResourceMeter</code>, <code>ReadingStatistics</code></td></tr>
+  <tr><td>C2</td><td>No shared <code>ArrayList</code> is written without a lock. Alerts go into <code>AlertStore</code>, whose methods are <code>synchronized</code>. The unused per-reading log list was replaced by two atomic counters.</td><td><code>AlertStore</code>, <code>ReadingStatistics</code></td></tr>
+  <tr><td>C3</td><td>Each <code>Chamber</code> owns its <code>ChamberState</code>, so the lookup map is gone. Where a map is still needed, <code>computeIfAbsent</code> / <code>compute</code> create and update entries atomically.</td><td><code>Chamber</code>, <code>ResourceMeter</code></td></tr>
+  <tr><td>C4</td><td><code>ChamberState</code> keeps its values private and every method is <code>synchronized</code>. <code>adjust()</code> does read-change-write as one step.</td><td><code>ChamberState</code></td></tr>
+  <tr><td>C5</td><td>The summary is an immutable <code>ChamberActivity</code> record, replaced with <code>ConcurrentHashMap.compute()</code>, which is atomic per chamber.</td><td><code>ChamberActivityTracker</code></td></tr>
+  <tr><td>C6</td><td>No thread ever holds two locks. Each class guards only its own data with one lock, and archiving is a single <code>synchronized</code> method. This removes the "hold and wait" condition needed for a deadlock.</td><td><code>AlertStore</code></td></tr>
+  <tr><td>C7</td><td>Archive and report now run in a fixed order after all threads finish (<code>invokeAll</code> + <code>Future.get()</code>), and reports read an immutable snapshot.</td><td><code>FarmSystem</code>, <code>FarmSnapshot</code></td></tr>
+  <tr><td>C8</td><td><code>ArrayBlockingQueue</code> handles waiting and waking. Shutdown is an "end" marker placed after pending requests, so none are lost. Interrupts are restored, not swallowed. The worker catches errors per request so it never dies and leaves producers stuck.</td><td><code>ControlQueue</code>, <code>ControlWorker</code></td></tr>
+</table>
+<p>Threads are created by an <code>ExecutorService</code>; monitors are <code>Callable</code>s, so any error inside a thread is
+returned through its <code>Future</code> instead of being lost. <code>RandomSensorSource</code> uses
+<code>ThreadLocalRandom</code> so threads do not compete for one shared <code>Random</code>.</p>
+<div class="note"><b>Proof by tests.</b> <code>ConcurrencyTest</code> runs 8 threads &times; 5,000 operations against
+<code>ResourceMeter</code>, <code>AlertStore</code> (adding while archiving), <code>ChamberState</code> and
+<code>ChamberActivityTracker</code>, and checks that the totals are exact. <code>FarmSystemTest</code> runs 4 chambers with a
+queue of size 1 (so producers must block) under a 10-second timeout to show there is no deadlock, and checks that every
+alert caused exactly one device activation.</div>
+
+<!-- ===================== 6. EXTENSIBILITY ===================== -->
+<h1>6. Extensibility and Maintainability</h1>
+<table>
+  <tr><th style="width:26%">Change</th><th>What you do</th><th style="width:20%">Existing code edited?</th></tr>
+  <tr><td>Add a crop (e.g. Kale)</td><td>Add one line to <code>crops.csv</code>: name and min/max for each sensor. Kale, Bell Pepper, Bok Choy and Eggplant were added this way, and CH5 now grows Kale.</td><td>None</td></tr>
+  <tr><td>Remove a crop</td><td>Delete its line from <code>crops.csv</code> (and any chamber using it in <code>chambers.csv</code>).</td><td>None</td></tr>
+  <tr><td>Change a crop's limits or a chamber's crop</td><td>Edit the CSV. A <code>crops.csv</code> next to <code>run.jar</code> overrides the built-in one, so no rebuild is needed.</td><td>None</td></tr>
+  <tr><td>Add a device</td><td>Create an <code>EnvironmentalDevice</code> with its effects and cost (or a new <code>Device</code> class) and use it in a rule.</td><td><code>StandardDevices</code> list only</td></tr>
+  <tr><td>Add a rule or alert type</td><td>Implement <code>SensorRule</code> and add it to <code>StandardRules</code>.</td><td><code>StandardRules</code> list only</td></tr>
+  <tr><td>Add a report</td><td>Implement <code>Report</code> and add it to <code>ReportGenerator.standard()</code>.</td><td>One list only</td></tr>
+  <tr><td>Use real sensors</td><td>Implement <code>SensorSource</code> and pass it in <code>Main</code>.</td><td><code>Main</code> only</td></tr>
+  <tr><td>Send alerts somewhere new (SMS, file)</td><td>Subscribe a new listener with <code>farm.onAlert(...)</code>.</td><td><code>Main</code> only</td></tr>
+</table>
+<p>Maintainability also comes from: small classes with clear names; immutable records for data passed between
+threads; validation in constructors (a crop missing a range, or an unknown crop in <code>chambers.csv</code>, fails at
+start-up with a clear message); and 30 JUnit tests covering boundary values, CSV loading and thread safety.</p>
+
+<!-- ===================== 7. DESIGN PATTERNS ===================== -->
+<h1>7. Design Patterns</h1>
+<table>
+  <tr><th style="width:15%">Pattern</th><th style="width:22%">Where</th><th>Problem it solves / why we chose it</th></tr>
+  <tr><td>Strategy</td><td><code>SensorRule</code>, <code>Device</code>, <code>SeverityPolicy</code>, <code>Report</code></td><td>Replaces long <code>if/else</code> chains on crop and device names. Each behaviour is its own object behind one interface, so new behaviour is added without editing old code (OCP).</td></tr>
+  <tr><td>Observer</td><td><code>EventBus</code> + listeners</td><td>Replaces <code>handleEvent("CREATE_ALERT"...)</code>. The monitor just publishes an alert; storing, counting and printing are separate listeners that can be added or removed freely.</td></tr>
+  <tr><td>Command</td><td><code>ControlRequest</code></td><td>A device request becomes a typed object (chamber + device) that can be queued and run later by another thread, instead of a <code>"CH1|Cooling Fan"</code> string that had to be split.</td></tr>
+  <tr><td>Producer&ndash;Consumer</td><td><code>ControlQueue</code>, <code>ControlWorker</code></td><td>Monitors (producers) and the device worker (consumer) run at their own speed. A bounded queue limits pending work, and the Java library handles the waiting safely.</td></tr>
+  <tr><td>Facade</td><td><code>FarmSystem</code></td><td>Hides the wiring of buses, stores, queue and thread pool behind three calls: <code>runMonitoring()</code>, <code>archiveAlerts()</code>, <code>snapshot()</code>.</td></tr>
+  <tr><td>Repository</td><td><code>CropRepository</code></td><td>The rest of the system asks for crops without knowing they come from a CSV file. Storage could change (e.g. to a database) without touching the rules.</td></tr>
+  <tr><td>Dependency Injection</td><td><code>Main</code></td><td>One place creates concrete classes and passes them in through constructors. This is what lets tests use a fixed <code>SensorSource</code> instead of random values.</td></tr>
+</table>
+<p><b>Patterns we chose not to use.</b> <i>Singleton</i>: the legacy code's global static state is exactly the "singleton
+abuse" problem, so we removed it instead of adding more. <i>State</i>: devices are simply activated, with no on/off
+lifecycle, so a State pattern would add classes without solving a real problem (KISS).</p>
+
+<h2>How to run</h2>
+<p><code>java -jar run.jar</code> (Java 25). The console shows alerts with severity and device actions, then the five
+reports; the full report is saved to <code>archive/daily_report.txt</code>. To build and test from source:
+<code>mvn package</code>.</p>
+
+</body>
+</html>
