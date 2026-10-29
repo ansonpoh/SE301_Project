@@ -1,0 +1,12 @@
+# Build output
+target/
+
+# Runtime output written by the app
+archive/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+*.iml
+.vscode/
