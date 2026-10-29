@@ -47,7 +47,7 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <mainClass>org.example.SVFRMS</mainClass>
+                            <mainClass>org.example.app.Main</mainClass>
                         </manifest>
                     </archive>
                 </configuration>
