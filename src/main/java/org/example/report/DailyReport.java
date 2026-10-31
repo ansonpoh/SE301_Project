@@ -5,8 +5,8 @@ import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Clock;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
@@ -28,15 +28,17 @@ public class DailyReport {
     private final ResourceMeter resources;
     private final ChamberSummaryTracker summaries;
     private final PrintStream out;
+    private final Clock clock;
     /** "Archived N alerts", "Daily Report", ... in the order they happened. Main thread only. */
     private final List<String> reportLog = new ArrayList<>();
 
     public DailyReport(AlertStore alerts, ResourceMeter resources,
-                       ChamberSummaryTracker summaries, PrintStream out) {
+                       ChamberSummaryTracker summaries, PrintStream out, Clock clock) {
         this.alerts = alerts;
         this.resources = resources;
         this.summaries = summaries;
         this.out = out;
+        this.clock = clock;
     }
 
     public void archiveAlerts() {
@@ -60,7 +62,7 @@ public class DailyReport {
         List<String> archived = alerts.archived();
         List<String> lines = new ArrayList<>();
         lines.add(HEADER);
-        lines.add("Timestamp: " + new Date());
+        lines.add("Timestamp: " + Timestamps.now(clock));
         lines.addAll(totals());
         lines.add("Archived alerts: " + archived.size());
         lines.add("---");
@@ -81,7 +83,7 @@ public class DailyReport {
         }
 
         try {
-            Files.createDirectories(file.getParent());
+            Files.createDirectories(file.toAbsolutePath().getParent());
             Files.write(file, lines, StandardCharsets.UTF_8);
             out.println("Archive report saved to: " + file.toAbsolutePath());
         } catch (IOException e) {

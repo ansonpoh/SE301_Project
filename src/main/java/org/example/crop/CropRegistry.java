@@ -11,7 +11,8 @@ import org.example.model.SensorType;
  *
  * Shared rules (rows with crop "*" in crops.csv) apply to every crop, which is
  * how the legacy global light and nutrient thresholds behave. A crop with no
- * profile only gets the shared rules, as in the legacy code.
+ * profile only gets the shared rules, as in the legacy code;
+ * FarmConfigLoader.loadChambers warns about such a chamber at start-up.
  * Read-only after loading, so it is safe to share between threads.
  */
 public class CropRegistry {

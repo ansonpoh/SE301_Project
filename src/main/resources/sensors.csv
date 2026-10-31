@@ -1,0 +1,11 @@
+# Readings a working sensor can produce. A reading outside this range (or NaN)
+# raises a CRITICAL Sensor Failure alert (spec 3.4): the value is not stored and
+# no device reacts to it. Every sensor type must be listed exactly once.
+# To support a different sensor model, edit its row. No Java changes.
+#
+# sensor,       min,   max
+TEMPERATURE,    -20,   60
+HUMIDITY,       0,     100
+SOIL,           0,     100
+LIGHT,          0,     200000
+NUTRIENT,       0,     100

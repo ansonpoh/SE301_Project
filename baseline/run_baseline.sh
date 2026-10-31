@@ -20,6 +20,7 @@ OUT="$BASE/expected"
 WORK="$(mktemp -d)"
 JAVA="${JAVA_HOME:+$JAVA_HOME/bin/}java"
 JAVAC="${JAVA_HOME:+$JAVA_HOME/bin/}javac"
+. "$BASE/env.sh"
 
 mkdir -p "$OUT"
 "$JAVAC" -d "$WORK/classes" "$BASE/legacy/org/example/SVFRMS.java" "$BASE/src/org/example/BaselineHarness.java"
@@ -28,7 +29,7 @@ mkdir -p "$OUT"
 for i in 1 2; do
   mkdir -p "$WORK/det$i"
   (cd "$WORK/det$i" && "$JAVA" -cp "$WORK/classes" org.example.BaselineHarness "$SEED" > stdout.txt 2>&1)
-  python3 -I "$BASE/normalize.py" "$WORK/det$i/stdout.txt" "$WORK/det$i/archive/daily_report.txt" > "$WORK/det$i/normalized.txt"
+  "$PY" -I "$BASE/normalize.py" "$WORK/det$i/stdout.txt" "$WORK/det$i/archive/daily_report.txt" > "$WORK/det$i/normalized.txt"
 done
 if diff -q "$WORK/det1/normalized.txt" "$WORK/det2/normalized.txt" > /dev/null; then
   echo "Deterministic baseline reproducible across 2 runs (seed $SEED)."

@@ -33,7 +33,17 @@ public class ChamberMonitor implements Runnable {
     public void run() {
         for (int cycle = 0; cycle < CYCLES; cycle++) {
             for (SensorType sensor : SensorType.values()) {
-                processor.process(chamberId, crop, state, sensor, sensors.read(sensor));
+                double value;
+                try {
+                    value = sensors.read(sensor);
+                } catch (RuntimeException e) {
+                    // An unresponsive sensor raises a Sensor Failure alert (spec 3.4)
+                    // and the chamber carries on with its other sensors.
+                    String reason = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+                    processor.sensorFailure(chamberId, crop, sensor, "no response: " + reason);
+                    continue;
+                }
+                processor.process(chamberId, crop, state, sensor, value);
             }
             resources.addWater(WATER_PER_CYCLE);
             resources.addEnergy(ENERGY_PER_CYCLE);

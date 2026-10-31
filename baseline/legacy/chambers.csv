@@ -1,0 +1,5 @@
+# The legacy chamber set (CH1-CH4): the default chamber list for check_invariants.py.
+CH1, Tomato
+CH2, Strawberry
+CH3, Lettuce
+CH4, Chili

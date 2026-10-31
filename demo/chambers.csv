@@ -1,0 +1,14 @@
+# Demo config for spec 4.5: the four legacy chambers plus the new crops Kale,
+# Bok Choy and Bell Pepper. Their rules are already in the built-in crops.csv,
+# so nothing is rebuilt and no Java changes:
+#
+#   java -jar run.jar demo
+#
+# chamber, crop
+CH1, Tomato
+CH2, Strawberry
+CH3, Lettuce
+CH4, Chili
+CH5, Kale
+CH6, Bok Choy
+CH7, Bell Pepper

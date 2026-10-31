@@ -9,6 +9,7 @@ set -euo pipefail
 RUNS="$1"; TITLE="$2"; SUMMARY="$3"; shift 3
 BASE="$(cd "$(dirname "$0")" && pwd)"
 WORK="$(mktemp -d)"
+. "$BASE/env.sh"
 
 : > "$WORK/results.txt"
 for i in $(seq 1 "$RUNS"); do
@@ -16,7 +17,7 @@ for i in $(seq 1 "$RUNS"); do
   # perl alarm = portable 30s timeout (the legacy main() can hang if its control thread dies).
   (cd "$WORK/run" && perl -e 'alarm shift; exec @ARGV' 30 "$@" > stdout.txt 2>&1) || true
   if [ -f "$WORK/run/archive/daily_report.txt" ]; then
-    python3 -I "$BASE/check_invariants.py" "$WORK/run/stdout.txt" "$WORK/run/archive/daily_report.txt" >> "$WORK/results.txt"
+    "$PY" -I "$BASE/check_invariants.py" "$WORK/run/stdout.txt" "$WORK/run/archive/daily_report.txt" >> "$WORK/results.txt"
   else
     echo "DEFECT: no report written (hung or crashed, killed after 30s)" >> "$WORK/results.txt"
   fi

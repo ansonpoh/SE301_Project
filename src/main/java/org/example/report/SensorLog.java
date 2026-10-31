@@ -1,8 +1,8 @@
 package org.example.report;
 
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Date;
 import java.util.List;
 
 /**
@@ -11,9 +11,14 @@ import java.util.List;
  */
 public class SensorLog {
     private final List<String> entries = Collections.synchronizedList(new ArrayList<>());
+    private final Clock clock;
+
+    public SensorLog(Clock clock) {
+        this.clock = clock;
+    }
 
     public void record(String message) {
-        entries.add(new Date() + " : " + message);
+        entries.add(Timestamps.now(clock) + " : " + message);
     }
 
     public int size() {

@@ -6,27 +6,45 @@
 #   device    : device to switch on, or - for none
 #   water     : litres charged when the alert fires
 #   energy    : kWh charged when the alert fires
+#   severity  : INFO, WARNING or CRITICAL (spec 3.4)
 #   message   : alert text after the chamber id; {crop} becomes the crop name
 #
 # To add a crop, add its rows. To remove a crop, delete its rows. No Java changes.
 #
-# crop,     sensor,      dir,  limit, device,            water, energy, message
-Tomato,     TEMPERATURE, HIGH, 28,    Cooling Fan,       0,     10,     {crop} High Temp
-Tomato,     TEMPERATURE, LOW,  22,    -,                 0,     15,     {crop} Low Temp
-Tomato,     HUMIDITY,    HIGH, 80,    Dehumidifier,      0,     0,      {crop} High Humidity
-Tomato,     HUMIDITY,    LOW,  60,    Humidifier,        20,    0,      {crop} Low Humidity
-Tomato,     SOIL,        LOW,  45,    Water Pump,        50,    0,      {crop} Low Soil Moisture
-Strawberry, TEMPERATURE, HIGH, 24,    Cooling Fan,       0,     10,     {crop} High Temp
-Strawberry, TEMPERATURE, LOW,  18,    -,                 0,     15,     {crop} Low Temp
-Strawberry, HUMIDITY,    HIGH, 85,    Dehumidifier,      0,     0,      {crop} High Humidity
-Strawberry, HUMIDITY,    LOW,  70,    Humidifier,        25,    0,      {crop} Low Humidity
-Lettuce,    TEMPERATURE, HIGH, 21,    Cooling Fan,       0,     0,      {crop} High Temp
-Lettuce,    TEMPERATURE, LOW,  15,    -,                 0,     0,      {crop} Low Temp
-Spinach,    TEMPERATURE, HIGH, 20,    Cooling Fan,       0,     0,      {crop} High Temp
-Spinach,    TEMPERATURE, LOW,  10,    -,                 0,     0,      {crop} Low Temp
-Chili,      TEMPERATURE, HIGH, 32,    Cooling Fan,       0,     0,      {crop} High Temp
-Chili,      TEMPERATURE, LOW,  24,    -,                 0,     0,      {crop} Low Temp
-Cucumber,   TEMPERATURE, HIGH, 27,    Cooling Fan,       0,     0,      {crop} High Temp
-Cucumber,   TEMPERATURE, LOW,  18,    -,                 0,     0,      {crop} Low Temp
-*,          LIGHT,       LOW,  500,   Grow Light,        0,     0,      Low Light Level
-*,          NUTRIENT,    LOW,  40,    Nutrient Injector, 0,     0,      Low Nutrient Level
+# crop,       sensor,       dir,   limit, device,             water, energy, severity,  message
+Tomato,       TEMPERATURE,  HIGH,  28,   Cooling Fan,        0,   10,  CRITICAL,  {crop} High Temp
+Tomato,       TEMPERATURE,  LOW,   22,   -,                  0,   15,  CRITICAL,  {crop} Low Temp
+Tomato,       HUMIDITY,     HIGH,  80,   Dehumidifier,       0,   0,   WARNING,   {crop} High Humidity
+Tomato,       HUMIDITY,     LOW,   60,   Humidifier,         20,  0,   WARNING,   {crop} Low Humidity
+Tomato,       SOIL,         LOW,   45,   Water Pump,         50,  0,   WARNING,   {crop} Low Soil Moisture
+Strawberry,   TEMPERATURE,  HIGH,  24,   Cooling Fan,        0,   10,  CRITICAL,  {crop} High Temp
+Strawberry,   TEMPERATURE,  LOW,   18,   -,                  0,   15,  CRITICAL,  {crop} Low Temp
+Strawberry,   HUMIDITY,     HIGH,  85,   Dehumidifier,       0,   0,   WARNING,   {crop} High Humidity
+Strawberry,   HUMIDITY,     LOW,   70,   Humidifier,         25,  0,   WARNING,   {crop} Low Humidity
+Lettuce,      TEMPERATURE,  HIGH,  21,   Cooling Fan,        0,   0,   CRITICAL,  {crop} High Temp
+Lettuce,      TEMPERATURE,  LOW,   15,   -,                  0,   0,   CRITICAL,  {crop} Low Temp
+Spinach,      TEMPERATURE,  HIGH,  20,   Cooling Fan,        0,   0,   CRITICAL,  {crop} High Temp
+Spinach,      TEMPERATURE,  LOW,   10,   -,                  0,   0,   CRITICAL,  {crop} Low Temp
+Chili,        TEMPERATURE,  HIGH,  32,   Cooling Fan,        0,   0,   CRITICAL,  {crop} High Temp
+Chili,        TEMPERATURE,  LOW,   24,   -,                  0,   0,   CRITICAL,  {crop} Low Temp
+Cucumber,     TEMPERATURE,  HIGH,  27,   Cooling Fan,        0,   0,   CRITICAL,  {crop} High Temp
+Cucumber,     TEMPERATURE,  LOW,   18,   -,                  0,   0,   CRITICAL,  {crop} Low Temp
+#
+# Crops added for spec 4.5 (rows only, no Java changes). The default chambers.csv
+# keeps the legacy four; "java -jar run.jar demo" runs Kale, Bok Choy and Bell Pepper.
+Kale,         TEMPERATURE,  HIGH,  24,   Cooling Fan,        0,   8,   CRITICAL,  {crop} High Temp
+Kale,         TEMPERATURE,  LOW,   12,   -,                  0,   12,  CRITICAL,  {crop} Low Temp
+Kale,         HUMIDITY,     LOW,   55,   Humidifier,         15,  0,   WARNING,   {crop} Low Humidity
+Kale,         SOIL,         LOW,   40,   Water Pump,         30,  0,   WARNING,   {crop} Low Soil Moisture
+Bok Choy,     TEMPERATURE,  HIGH,  22,   Cooling Fan,        0,   8,   CRITICAL,  {crop} High Temp
+Bok Choy,     TEMPERATURE,  LOW,   13,   -,                  0,   12,  CRITICAL,  {crop} Low Temp
+Bok Choy,     HUMIDITY,     HIGH,  85,   Dehumidifier,       0,   0,   WARNING,   {crop} High Humidity
+Bok Choy,     SOIL,         LOW,   50,   Water Pump,         40,  0,   WARNING,   {crop} Low Soil Moisture
+Bell Pepper,  TEMPERATURE,  HIGH,  29,   Cooling Fan,        0,   0,   CRITICAL,  {crop} High Temp
+Bell Pepper,  TEMPERATURE,  LOW,   21,   -,                  0,   0,   CRITICAL,  {crop} Low Temp
+Eggplant,     TEMPERATURE,  HIGH,  30,   Cooling Fan,        0,   0,   CRITICAL,  {crop} High Temp
+Eggplant,     TEMPERATURE,  LOW,   22,   -,                  0,   0,   CRITICAL,  {crop} Low Temp
+#
+# Rules every crop shares (the legacy global light and nutrient thresholds).
+*,            LIGHT,        LOW,   500,  Grow Light,         0,   0,   INFO,      Low Light Level
+*,            NUTRIENT,     LOW,   40,   Nutrient Injector,  0,   0,   WARNING,   Low Nutrient Level

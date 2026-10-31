@@ -5,6 +5,7 @@ Usage: python3 -I normalize.py <stdout.txt> <daily_report.txt> > normalized.txt
 What is removed or reshaped (and why):
   - "Timestamp: ..." in the report   -> changes every run
   - "Archive report saved to: <abs path>" -> depends on working directory
+  - "Alerts by severity: ..."         -> extension output (spec 3.4), not in the legacy program
   - ANSI colour codes                 -> cosmetic
   - CONTROL lines                     -> their position and numeric values depend on
                                          control-thread timing, so they are reported
@@ -30,6 +31,8 @@ def main(stdout_path, report_path):
                 m = CONTROL.match(line)
                 if m:
                     control_counts[(m.group(1), m.group(2))] += 1
+                continue
+            if line.startswith("Alerts by severity:"):
                 continue
             if line.startswith("Archive report saved to:"):
                 line = "Archive report saved to: <path>"

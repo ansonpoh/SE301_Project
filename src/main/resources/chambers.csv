@@ -1,5 +1,8 @@
 # Which crop grows in which chamber. Each row runs as one chamber thread.
-# Spinach and Cucumber have rules in crops.csv but no chamber (same as the legacy code).
+# These are the legacy chambers, so a default run behaves exactly like the legacy
+# program. Spinach, Cucumber, Kale, Bok Choy, Bell Pepper and Eggplant have rules
+# in crops.csv but no chamber here. To run another layout without rebuilding:
+#   java -jar run.jar demo      (demo/chambers.csv adds CH5 Kale, CH6 Bok Choy, CH7 Bell Pepper)
 #
 # chamber, crop
 CH1, Tomato
