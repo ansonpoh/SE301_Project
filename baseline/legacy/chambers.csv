@@ -1,0 +1,6 @@
+# The legacy chamber set (CH1-CH4). compare_refactor.sh puts this folder first on the
+# harness classpath so the refactored code runs exactly the chambers the baseline ran.
+CH1, Tomato
+CH2, Strawberry
+CH3, Lettuce
+CH4, Chili

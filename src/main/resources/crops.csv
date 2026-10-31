@@ -28,5 +28,13 @@ Chili,      TEMPERATURE, HIGH, 32,    Cooling Fan,       0,     0,      {crop} H
 Chili,      TEMPERATURE, LOW,  24,    -,                 0,     0,      {crop} Low Temp
 Cucumber,   TEMPERATURE, HIGH, 27,    Cooling Fan,       0,     0,      {crop} High Temp
 Cucumber,   TEMPERATURE, LOW,  18,    -,                 0,     0,      {crop} Low Temp
+Kale,       TEMPERATURE, HIGH, 24,    Cooling Fan,       0,     8,      {crop} High Temp
+Kale,       TEMPERATURE, LOW,  12,    -,                 0,     12,     {crop} Low Temp
+Kale,       HUMIDITY,    LOW,  55,    Humidifier,        15,    0,      {crop} Low Humidity
+Kale,       SOIL,        LOW,  40,    Water Pump,        30,    0,      {crop} Low Soil Moisture
+Bok Choy,   TEMPERATURE, HIGH, 22,    Cooling Fan,       0,     8,      {crop} High Temp
+Bok Choy,   TEMPERATURE, LOW,  13,    -,                 0,     12,     {crop} Low Temp
+Bok Choy,   HUMIDITY,    HIGH, 85,    Dehumidifier,      0,     0,      {crop} High Humidity
+Bok Choy,   SOIL,        LOW,  50,    Water Pump,        40,    0,      {crop} Low Soil Moisture
 *,          LIGHT,       LOW,  500,   Grow Light,        0,     0,      Low Light Level
 *,          NUTRIENT,    LOW,  40,    Nutrient Injector, 0,     0,      Low Nutrient Level

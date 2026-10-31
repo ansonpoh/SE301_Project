@@ -25,7 +25,9 @@ EXPECTED="$BASE/expected/seed$SEED-normalized.txt"
 "$JAVAC" -d "$WORK/harness" -cp "$ROOT/target/classes" "$BASE/src/harness/RefactoredHarness.java"
 
 mkdir -p "$WORK/det" "$BASE/results"
-(cd "$WORK/det" && "$JAVA" -cp "$ROOT/target/classes:$WORK/harness" harness.RefactoredHarness "$SEED" > stdout.txt 2>&1)
+# baseline/legacy comes first on the classpath, so its chambers.csv (CH1-CH4 only)
+# overrides the app's one: the run then covers exactly the chambers the baseline ran.
+(cd "$WORK/det" && "$JAVA" -cp "$BASE/legacy:$ROOT/target/classes:$WORK/harness" harness.RefactoredHarness "$SEED" > stdout.txt 2>&1)
 python3 -I "$BASE/normalize.py" "$WORK/det/stdout.txt" "$WORK/det/archive/daily_report.txt" > "$BASE/results/seed$SEED-refactored-normalized.txt"
 
 if diff -u "$EXPECTED" "$BASE/results/seed$SEED-refactored-normalized.txt" > "$WORK/diff.txt"; then
@@ -34,6 +36,6 @@ else
   echo "BEHAVIOUR: DIFFERS from legacy baseline (seed $SEED):"; head -40 "$WORK/diff.txt"
 fi
 
-"$BASE/stress.sh" "$RUNS" "Refactored concurrent run.jar" "$BASE/results/refactored-stress.txt" \
+FARM_CHAMBERS="$ROOT/src/main/resources/chambers.csv" "$BASE/stress.sh" "$RUNS" "Refactored concurrent run.jar" "$BASE/results/refactored-stress.txt" \
   "$JAVA" -jar "$ROOT/target/run.jar"
 rm -rf "$WORK"
