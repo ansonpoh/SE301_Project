@@ -16,6 +16,7 @@ import org.example.app.ChamberAssignment;
 import org.example.app.FarmConfigLoader;
 import org.example.app.FarmSimulation;
 import org.example.crop.CropRegistry;
+import org.example.device.ConsoleActionPrinter;
 import org.example.device.ControlService;
 import org.example.device.CoolingFan;
 import org.example.device.Dehumidifier;
@@ -24,6 +25,8 @@ import org.example.device.GrowLight;
 import org.example.device.HeatingUnit;
 import org.example.device.Humidifier;
 import org.example.device.NutrientInjector;
+import org.example.device.ShadeController;
+import org.example.device.VentilationSystem;
 import org.example.device.WaterPump;
 import org.example.report.ChamberSummaryTracker;
 import org.example.report.DailyReport;
@@ -52,7 +55,8 @@ public final class SVFRMS {
      * Usage: java -jar run.jar [config-folder]
      *
      * With a config folder, a crops.csv, chambers.csv or sensors.csv inside it replaces
-     * the built-in file, e.g. "java -jar run.jar demo" adds the Kale, Bok Choy and Bell Pepper chambers.
+     * the built-in file, e.g. "java -jar run.jar demo" adds the Kale, Bok Choy and Bell Pepper chambers
+     * and a stricter sensors.csv, so Sensor Failure alerts appear.
      */
     public static void main(String[] args) {
         if (args.length > 1) {
@@ -120,7 +124,9 @@ public final class SVFRMS {
                 .register(new Humidifier())
                 .register(new Dehumidifier())
                 .register(new GrowLight())
-                .register(new HeatingUnit());
+                .register(new HeatingUnit())
+                .register(new VentilationSystem())
+                .register(new ShadeController());
 
         FarmConfigLoader config = new FarmConfigLoader(configDir, err);
         CropRegistry crops = config.loadCrops(FarmConfigLoader.CROPS_FILE, devices);
@@ -137,12 +143,15 @@ public final class SVFRMS {
         alerts.subscribe(severityLog);
 
         ResourceMeter resources = new ResourceMeter();
-        ControlService control = new ControlService(CONTROL_QUEUE_CAPACITY, summaries, out, err);
-        SensorProcessor processor = new SensorProcessor(crops, devices, alerts, resources, control, new SensorLog(clock),
+        // same order as the legacy code: track the action, then print it
+        ControlService control = new ControlService(CONTROL_QUEUE_CAPACITY,
+                List.of(summaries, new ConsoleActionPrinter(out)), err);
+        SensorLog sensorLog = new SensorLog(clock);
+        SensorProcessor processor = new SensorProcessor(crops, devices, alerts, resources, control, sensorLog,
                 sensorRanges);
         DailyReport report = new DailyReport(alertStore, resources, summaries, out, clock);
 
         return new FarmSimulation(chambers, maxChamberThreads, sensors, processor, resources, control, report,
-                severityLog, out, err);
+                List.of(severityLog, sensorLog), out, err);
     }
 }

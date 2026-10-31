@@ -22,7 +22,9 @@ import org.example.alert.Severity;
  * listeners changed (Observer, OCP). Chamber threads call onAlert at the same
  * time, so all access is synchronized on this log.
  */
-public class SeverityLog implements AlertListener {
+public class SeverityLog implements AlertListener, DayEndOutput {
+    public static final String FILE_NAME = "alerts_by_severity.txt";
+
     private final List<String> entries = new ArrayList<>();
     private final Map<Severity, Integer> counts = new EnumMap<>(Severity.class);
 
@@ -49,12 +51,23 @@ public class SeverityLog implements AlertListener {
         return String.join(", ", parts);
     }
 
+    @Override
+    public String fileName() {
+        return FILE_NAME;
+    }
+
+    @Override
+    public String summaryLine() {
+        return "Alerts by severity: " + summary();
+    }
+
     /**
      * The counts and the entries are taken under one lock, so they always agree,
      * even if a chamber that did not stop in time is still raising alerts.
      *
      * @throws IOException if the file cannot be written
      */
+    @Override
     public void save(Path file) throws IOException {
         List<String> lines = snapshot();
         Files.createDirectories(file.toAbsolutePath().getParent());

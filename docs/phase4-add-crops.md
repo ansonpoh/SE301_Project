@@ -31,6 +31,11 @@ Two data files changed. **No Java file was edited, added or recompiled by hand**
 - **Removing a crop** is the reverse: delete its rows (and its chamber line).
 - If a row names a device that doesn't exist (e.g. `Heater`), the program stops at start-up with `crops.csv line N: unknown device 'Heater'` instead of failing later.
 
+## Later additions
+
+- **Bell Pepper and Eggplant** were added the same way (rows only). They use the three spec 3.3 devices the legacy code lacked: Heating Unit (low temperature), Ventilation System (high humidity) and Shade Controller (high light). Each device is one new `Device` class plus one `register` line in `SVFRMS`; no other class changed.
+- **`demo/sensors.csv`** models a light sensor that reads at most 1100 lux, so `java -jar run.jar demo` also shows CRITICAL Sensor Failure alerts (spec 3.4). The built-in `sensors.csv` is unchanged, so a default run shows none.
+
 ## Why no Java change was needed (Open/Closed)
 
 | Concern | Where it lives | Changed? |
@@ -42,7 +47,7 @@ Two data files changed. **No Java file was edited, added or recompiled by hand**
 | Alerts, totals, report, archive | `AlertStore`, `ResourceMeter`, `DailyReport` | no |
 | Threading | `FarmSimulation` sizes its pool from the chamber list | no |
 
-## Result (one run of `java -jar target/run.jar demo`)
+## Result (one run of `java -jar run.jar demo`, before the later additions)
 
 ```
 [CH5][Kale][ALERT] CH5 Kale Low Soil Moisture

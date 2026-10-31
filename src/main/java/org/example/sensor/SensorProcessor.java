@@ -1,16 +1,16 @@
 package org.example.sensor;
 
 import org.example.alert.Alert;
-import org.example.alert.AlertPublisher;
+import org.example.alert.AlertListener;
 import org.example.alert.Severity;
 import org.example.crop.CropRegistry;
 import org.example.crop.ThresholdRule;
 import org.example.device.ControlRequest;
-import org.example.device.ControlService;
+import org.example.device.ControlSink;
 import org.example.device.DeviceRegistry;
 import org.example.model.ChamberState;
 import org.example.model.SensorType;
-import org.example.report.ResourceMeter;
+import org.example.report.UsageMeter;
 import org.example.report.SensorLog;
 
 /**
@@ -20,18 +20,22 @@ import org.example.report.SensorLog;
  *
  * Holds no lock while publishing alerts or queueing device requests, so it can
  * never wait for one lock while holding another (no deadlock possible).
+ *
+ * Alerts, usage and device requests go through interfaces (AlertListener,
+ * UsageMeter, ControlSink), so the rule engine does not depend on how they are
+ * implemented (Dependency Inversion).
  */
 public class SensorProcessor {
     private final CropRegistry crops;
     private final DeviceRegistry devices;
-    private final AlertPublisher alerts;
-    private final ResourceMeter resources;
-    private final ControlService control;
+    private final AlertListener alerts;
+    private final UsageMeter resources;
+    private final ControlSink control;
     private final SensorLog sensorLog;
     private final SensorRanges ranges;
 
-    public SensorProcessor(CropRegistry crops, DeviceRegistry devices, AlertPublisher alerts,
-                           ResourceMeter resources, ControlService control, SensorLog sensorLog,
+    public SensorProcessor(CropRegistry crops, DeviceRegistry devices, AlertListener alerts,
+                           UsageMeter resources, ControlSink control, SensorLog sensorLog,
                            SensorRanges ranges) {
         this.crops = crops;
         this.devices = devices;
@@ -56,7 +60,7 @@ public class SensorProcessor {
             if (!rule.isBreachedBy(value)) {
                 continue;
             }
-            alerts.publish(new Alert(chamberId, crop, rule.alertText(chamberId, crop), rule.severity()));
+            alerts.onAlert(new Alert(chamberId, crop, rule.alertText(chamberId, crop), rule.severity()));
             resources.addWater(rule.waterCost());
             resources.addEnergy(rule.energyCost());
             if (rule.triggersDevice()) {
@@ -76,7 +80,7 @@ public class SensorProcessor {
 
     /** CRITICAL, no costs, no device. */
     private void publishFailure(String chamberId, String crop, SensorType sensor, String detail) {
-        alerts.publish(new Alert(chamberId, crop,
+        alerts.onAlert(new Alert(chamberId, crop,
                 chamberId + " " + crop + " " + sensor.label() + " Sensor Failure (" + detail + ")",
                 Severity.CRITICAL));
     }

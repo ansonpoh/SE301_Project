@@ -1,0 +1,12 @@
+# Demo sensor model for spec 3.4: this light sensor reads at most 1100 lux, so the
+# simulated readings above that (about 1 in 9) raise a CRITICAL Sensor Failure
+# alert, which the built-in ranges never do. Data change only, no Java changes:
+#
+#   java -jar run.jar demo
+#
+# sensor,       min,   max
+TEMPERATURE,    -20,   60
+HUMIDITY,       0,     100
+SOIL,           0,     100
+LIGHT,          0,     1100
+NUTRIENT,       0,     100

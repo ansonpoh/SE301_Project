@@ -95,7 +95,7 @@ class FarmSimulationTest {
         }
 
         // Extension: every alert is a temperature alert, so all are CRITICAL.
-        List<String> severities = Files.readAllLines(reportFile.resolveSibling(FarmSimulation.SEVERITY_FILE));
+        List<String> severities = Files.readAllLines(reportFile.resolveSibling(SeverityLog.FILE_NAME));
         assertTrue(severities.contains("CRITICAL: " + alerts));
         assertTrue(severities.contains("WARNING: 0"));
         assertTrue(severities.contains("CRITICAL: CH1 Tomato High Temp"));
@@ -104,6 +104,13 @@ class FarmSimulationTest {
                 "Alerts by severity: INFO=0, WARNING=0, CRITICAL=" + alerts + " (saved to ")));
         assertFalse(lines.stream().filter(line -> line.startsWith("[")).anyMatch(line -> line.contains("CRITICAL")),
                 "severity must not change the legacy alert lines");
+
+        // Extension: the sensor log is saved, one line per reading (5 sensors per cycle).
+        int readings = chambers.size() * CYCLES * SensorType.values().length;
+        List<String> sensorLog = Files.readAllLines(reportFile.resolveSibling(SensorLog.FILE_NAME));
+        assertEquals(readings, sensorLog.size());
+        assertTrue(sensorLog.stream().anyMatch(line -> line.endsWith(" : Processing Tomato Temperature = 35.0")));
+        assertTrue(lines.stream().anyMatch(line -> line.startsWith("Sensor log: " + readings + " readings (saved to ")));
     }
 
     /**
@@ -131,7 +138,7 @@ class FarmSimulationTest {
         assertTrue(report.contains("Generated Alerts: " + CYCLES));
         assertTrue(report.stream().anyMatch(line -> line.startsWith("CH1 -> Alerts=" + CYCLES
                 + ", Actions=0, Last Action=No action, Last Alert=CH1 Tomato Humidity Sensor Failure")));
-        List<String> severities = Files.readAllLines(reportFile.resolveSibling(FarmSimulation.SEVERITY_FILE));
+        List<String> severities = Files.readAllLines(reportFile.resolveSibling(SeverityLog.FILE_NAME));
         assertTrue(severities.contains("CRITICAL: " + CYCLES));
     }
 
@@ -187,7 +194,7 @@ class FarmSimulationTest {
         });
 
         assertTrue(Files.exists(reportFile));
-        assertTrue(Files.exists(reportFile.resolveSibling(FarmSimulation.SEVERITY_FILE)));
+        assertTrue(Files.exists(reportFile.resolveSibling(SeverityLog.FILE_NAME)));
     }
 
     /**
@@ -222,12 +229,13 @@ class FarmSimulationTest {
         alerts.subscribe(summaries);
         alerts.subscribe(store);
         ResourceMeter resources = new ResourceMeter();
-        ControlService control = new ControlService(10, summaries, silent, err);
+        ControlService control = new ControlService(10, List.of(summaries), err);
+        SensorLog sensorLog = new SensorLog(Clock.systemUTC());
         SensorProcessor processor = new SensorProcessor(crops, devices, alerts, resources, control,
-                new SensorLog(Clock.systemUTC()), new FarmConfigLoader().loadSensorRanges("sensors.csv"));
+                sensorLog, new FarmConfigLoader().loadSensorRanges("sensors.csv"));
         FarmSimulation simulation = new FarmSimulation(List.of(new ChamberAssignment("CH1", "Tomato")), 1, sensors,
                 processor, resources, control, new DailyReport(store, resources, summaries, silent, Clock.systemUTC()),
-                new SeverityLog(), silent, err);
+                List.of(new SeverityLog(), sensorLog), silent, err);
 
         boolean ok = assertTimeoutPreemptively(Duration.ofSeconds(20),
                 () -> simulation.run(dir.resolve("archive").resolve("daily_report.txt")));

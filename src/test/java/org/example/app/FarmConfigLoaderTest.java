@@ -24,6 +24,8 @@ import org.example.device.GrowLight;
 import org.example.device.HeatingUnit;
 import org.example.device.Humidifier;
 import org.example.device.NutrientInjector;
+import org.example.device.ShadeController;
+import org.example.device.VentilationSystem;
 import org.example.device.WaterPump;
 import org.example.model.SensorType;
 import org.example.sensor.SensorRanges;
@@ -41,7 +43,7 @@ class FarmConfigLoaderTest {
     private final DeviceRegistry devices = new DeviceRegistry()
             .register(new CoolingFan()).register(new WaterPump()).register(new NutrientInjector())
             .register(new Humidifier()).register(new Dehumidifier()).register(new GrowLight())
-            .register(new HeatingUnit());
+            .register(new HeatingUnit()).register(new VentilationSystem()).register(new ShadeController());
 
     @TempDir
     Path dir;
@@ -86,7 +88,7 @@ class FarmConfigLoaderTest {
     void rejectsUnknownDevice() {
         IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
                 () -> loader.loadCrops("test-unknown-device.csv", devices));
-        assertTrue(e.getMessage().contains("line 1") && e.getMessage().contains("Shade Controller"), e.getMessage());
+        assertTrue(e.getMessage().contains("line 1") && e.getMessage().contains("Misting Nozzle"), e.getMessage());
     }
 
     @Test
@@ -248,6 +250,38 @@ class FarmConfigLoaderTest {
         IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
                 () -> new FarmConfigLoader(dir, null).loadCrops("crops.csv", devices));
         assertTrue(e.getMessage().contains("line 3") && e.getMessage().contains("line 1"), e.getMessage());
+    }
+
+    /** A crop row that repeats a shared "*" row would fire twice for that crop, even if the shared row comes later. */
+    @Test
+    void rejectsCropRuleThatRepeatsASharedRule() throws IOException {
+        Files.writeString(dir.resolve("crops.csv"),
+                "Kale, LIGHT, LOW, 500, Grow Light, 0, 0, INFO, {crop} Dim\n"
+                        + "*, LIGHT, LOW, 500, Grow Light, 0, 0, INFO, Low Light Level\n");
+
+        IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
+                () -> new FarmConfigLoader(dir, null).loadCrops("crops.csv", devices));
+        assertTrue(e.getMessage().contains("line 1") && e.getMessage().contains("shared rule on line 2"),
+                e.getMessage());
+    }
+
+    /** The message is the last column, so commas in it are part of the text, not extra columns. */
+    @Test
+    void allowsCommasInTheMessage() throws IOException {
+        Files.writeString(dir.resolve("crops.csv"),
+                "Kale, TEMPERATURE, HIGH, 24, Cooling Fan, 0, 8, CRITICAL, {crop} High Temp, check fan\n");
+
+        ThresholdRule rule = new FarmConfigLoader(dir, null).loadCrops("crops.csv", devices)
+                .rulesFor("Kale", SensorType.TEMPERATURE).get(0);
+        assertEquals("CH5 Kale High Temp, check fan", rule.alertText("CH5", "Kale"));
+    }
+
+    @Test
+    void newCropsUseTheSpecDevices() {
+        CropRegistry crops = builtInCrops();
+        assertEquals("Ventilation System", crops.rulesFor("Bell Pepper", SensorType.HUMIDITY).get(0).deviceName());
+        assertEquals("Shade Controller", crops.rulesFor("Bell Pepper", SensorType.LIGHT).get(0).deviceName());
+        assertEquals("Heating Unit", crops.rulesFor("Eggplant", SensorType.TEMPERATURE).get(1).deviceName());
     }
 
     /** Different limits on the same sensor are separate levels, not duplicates. */

@@ -10,6 +10,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -19,6 +21,7 @@ import java.util.concurrent.TimeUnit;
 import org.example.TestFixtures;
 import org.example.model.ChamberState;
 import org.example.model.ChamberSummary;
+import org.example.model.SensorType;
 import org.example.report.ChamberSummaryTracker;
 import org.junit.jupiter.api.Test;
 
@@ -44,7 +47,7 @@ class ControlServiceTest {
     @Test
     void everyRequestIsExecutedBeforeStop() {
         ChamberSummaryTracker summaries = new ChamberSummaryTracker();
-        ControlService control = new ControlService(1, summaries, SILENT, SILENT);
+        ControlService control = new ControlService(1, List.of(summaries), SILENT);
         ChamberState state = new ChamberState();
         int producers = 8;
         int requestsEach = 500;
@@ -74,7 +77,7 @@ class ControlServiceTest {
     @Test
     void failingDeviceDoesNotKillTheConsumer() {
         ChamberSummaryTracker summaries = new ChamberSummaryTracker();
-        ControlService control = new ControlService(1, summaries, SILENT, SILENT);
+        ControlService control = new ControlService(1, List.of(summaries), SILENT);
         ChamberState state = new ChamberState();
 
         assertTimeoutPreemptively(Duration.ofSeconds(10), () -> {
@@ -108,7 +111,7 @@ class ControlServiceTest {
                 throw new AssertionError("simulated crash");
             }
         };
-        ControlService control = new ControlService(1, new ChamberSummaryTracker(), SILENT, SILENT);
+        ControlService control = new ControlService(1, List.of(new ChamberSummaryTracker()), SILENT);
         ChamberState state = new ChamberState();
 
         assertTimeoutPreemptively(Duration.ofSeconds(10), () -> {
@@ -133,7 +136,7 @@ class ControlServiceTest {
      */
     @Test
     void interruptedProducerFailsLoudly() {
-        ControlService control = new ControlService(1, new ChamberSummaryTracker(), SILENT, SILENT);
+        ControlService control = new ControlService(1, List.of(new ChamberSummaryTracker()), SILENT);
         ChamberState state = new ChamberState();
         control.request(new ControlRequest("CH1", state, new CoolingFan()));   // queue is now full, no consumer
 
@@ -151,7 +154,7 @@ class ControlServiceTest {
     /** A hung device with a full queue must not block shutdown forever: stop() gives up after its timeout. */
     @Test
     void stopGivesUpWhenTheQueueStaysFull() {
-        ControlService control = new ControlService(1, new ChamberSummaryTracker(), SILENT, SILENT);
+        ControlService control = new ControlService(1, List.of(new ChamberSummaryTracker()), SILENT);
         control.request(new ControlRequest("CH1", new ChamberState(), new CoolingFan()));   // full, no consumer
 
         assertTimeoutPreemptively(Duration.ofSeconds(5),
@@ -171,7 +174,7 @@ class ControlServiceTest {
             }
         };
         ByteArrayOutputStream errors = new ByteArrayOutputStream();
-        ControlService control = new ControlService(2, new ChamberSummaryTracker(), SILENT,
+        ControlService control = new ControlService(2, List.of(new ChamberSummaryTracker()),
                 new PrintStream(errors, true, StandardCharsets.UTF_8));
         ChamberState state = new ChamberState();
         control.request(new ControlRequest("CH1", state, crashing));
@@ -184,5 +187,58 @@ class ControlServiceTest {
 
         String text = errors.toString(StandardCharsets.UTF_8);
         assertTrue(text.contains("Control request not run for CH2: Water Pump"), text);
+    }
+
+    /** A failing listener is reported on its own: the device still ran, and the next listener is still told. */
+    @Test
+    void failingListenerDoesNotHideTheActionFromTheOthers() {
+        ByteArrayOutputStream errors = new ByteArrayOutputStream();
+        ChamberSummaryTracker summaries = new ChamberSummaryTracker();
+        ActionListener failing = (chamber, device, result) -> {
+            throw new IllegalStateException("listener fault");
+        };
+        ControlService control = new ControlService(2, List.of(failing, summaries),
+                new PrintStream(errors, true, StandardCharsets.UTF_8));
+
+        assertTimeoutPreemptively(Duration.ofSeconds(10), () -> {
+            ExecutorService consumer = Executors.newSingleThreadExecutor();
+            consumer.submit(control);
+            control.request(new ControlRequest("CH1", new ChamberState(), new CoolingFan()));
+            control.stop(5, TimeUnit.SECONDS);
+            consumer.shutdown();
+            consumer.awaitTermination(5, TimeUnit.SECONDS);
+        });
+
+        assertEquals(1, summaries.sortedSummaries().get("CH1").mitigationActions());
+        String text = errors.toString(StandardCharsets.UTF_8);
+        assertTrue(text.contains("Action listener failed for CH1 (Cooling Fan did run)"), text);
+        assertFalse(text.contains("Control request failed"), text);
+    }
+
+    /** Listeners hear about each device run in the order given; the console printer keeps the legacy text. */
+    @Test
+    void listenersAreToldAboutEachActionInOrder() {
+        ByteArrayOutputStream console = new ByteArrayOutputStream();
+        List<String> order = new ArrayList<>();
+        ActionListener first = (chamber, device, result) -> order.add("first " + chamber + " " + device);
+        ActionListener second = (chamber, device, result) -> order.add("second " + result);
+        ControlService control = new ControlService(2, List.of(first, second,
+                new ConsoleActionPrinter(new PrintStream(console, true, StandardCharsets.UTF_8))), SILENT);
+        ChamberState state = new ChamberState();
+        state.set(SensorType.TEMPERATURE, 31);
+
+        assertTimeoutPreemptively(Duration.ofSeconds(10), () -> {
+            ExecutorService consumer = Executors.newSingleThreadExecutor();
+            consumer.submit(control);
+            control.request(new ControlRequest("CH1", state, new CoolingFan()));
+            control.stop(5, TimeUnit.SECONDS);
+            consumer.shutdown();
+            consumer.awaitTermination(5, TimeUnit.SECONDS);
+        });
+
+        assertEquals(List.of("first CH1 Cooling Fan", "second Temperature reduced to 26.0C"), order);
+        String text = console.toString(StandardCharsets.UTF_8);
+        assertTrue(text.contains("[CH1][CONTROL] Cooling Fan Activated")
+                && text.contains("[CH1][CONTROL] Temperature reduced to 26.0C"), text);
     }
 }

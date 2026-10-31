@@ -29,10 +29,20 @@ public class ChamberState {
         values.put(type, value);
     }
 
+    /** One reading before and after an atomic change. */
+    public record Change(double before, double after) {
+    }
+
     /** Applies a change to one reading atomically and returns the new value. */
-    public synchronized double adjust(SensorType type, DoubleUnaryOperator change) {
-        double updated = change.applyAsDouble(values.get(type));
-        values.put(type, updated);
-        return updated;
+    public double adjust(SensorType type, DoubleUnaryOperator change) {
+        return change(type, change).after();
+    }
+
+    /** Like adjust(), but also returns the value it started from. */
+    public synchronized Change change(SensorType type, DoubleUnaryOperator change) {
+        double before = values.get(type);
+        double after = change.applyAsDouble(before);
+        values.put(type, after);
+        return new Change(before, after);
     }
 }

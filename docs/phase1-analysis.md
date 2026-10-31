@@ -167,7 +167,7 @@ Rule: **preserve behaviour (spec section 4), fix only concurrency defects and de
 | Q4 | Inconsistent costs: energy only on Tomato/Strawberry temperature alerts (+10 high / +15 low), water only on Tomato/Strawberry low humidity (20 / 25) and Tomato low soil (50); per iteration +2 L / +1 kWh | 148–186, 291–292 | Keep the exact numbers, stored with each rule |
 | Q5 | Low temperature triggers no device but still charges 15 kWh (Tomato/Strawberry) | 149, 153, … | Keep |
 | Q6 | Spinach and Cucumber are defined but never scheduled | 159–170, 351–354 | Keep as profiles; not scheduled |
-| Q7 | Heating Unit, Ventilation System and Shade Controller are missing; Humidifier and Dehumidifier are extra | – | Keep the legacy device set. Adding a device later means adding one class |
+| Q7 | Heating Unit, Ventilation System and Shade Controller are missing; Humidifier and Dehumidifier are extra | – | Keep the legacy device set for the legacy crops. Later added all three as one class each, used only by the new crops |
 | Q8 | Archive-vs-report order is random | 384–386 | **Fix**: always archive first (the ~96% legacy behaviour) – this is concurrency issue C6 |
 | Q9 | The console report's `Active Alerts` is almost always 0, because it runs after archiving | 212 | Keep (follows from Q8) |
 | Q10 | Device effects are overwritten by the next sensor reading, so devices never influence later alerts | 94–124 vs 146–198 | Keep the asynchronous model; only make each state update thread-safe (C4) |

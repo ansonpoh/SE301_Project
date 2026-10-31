@@ -2,7 +2,7 @@ package org.example.sensor;
 
 import org.example.model.ChamberState;
 import org.example.model.SensorType;
-import org.example.report.ResourceMeter;
+import org.example.report.UsageMeter;
 
 /**
  * Simulates one chamber for a day: 20 cycles, each reading all five sensors.
@@ -18,10 +18,10 @@ public class ChamberMonitor implements Runnable {
     private final ChamberState state = new ChamberState();
     private final SensorSource sensors;
     private final SensorProcessor processor;
-    private final ResourceMeter resources;
+    private final UsageMeter resources;
 
     public ChamberMonitor(String chamberId, String crop, SensorSource sensors,
-                          SensorProcessor processor, ResourceMeter resources) {
+                          SensorProcessor processor, UsageMeter resources) {
         this.chamberId = chamberId;
         this.crop = crop;
         this.sensors = sensors;

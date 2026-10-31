@@ -14,8 +14,8 @@ import java.util.concurrent.TimeUnit;
 
 import org.example.device.ControlService;
 import org.example.report.DailyReport;
-import org.example.report.ResourceMeter;
-import org.example.report.SeverityLog;
+import org.example.report.DayEndOutput;
+import org.example.report.UsageMeter;
 import org.example.sensor.ChamberMonitor;
 import org.example.sensor.SensorProcessor;
 import org.example.sensor.SensorSource;
@@ -26,37 +26,36 @@ import org.example.sensor.SensorSource;
  *   2. run every chamber monitor and wait for all of them
  *   3. stop the control thread once its queue is drained
  *   4. archive alerts, then print the report (fixed order), then save it
- *      and the alert log by severity
+ *      and every other end-of-day output (alerts by severity, sensor log)
  *
  * Chamber failures are caught through Future.get() and reported, instead of a
  * thread dying silently as in the legacy code (issue C11).
  */
 public class FarmSimulation {
     private static final long SHUTDOWN_TIMEOUT_SECONDS = 30;
-    /**
-     * Written next to the daily report. Only a one-line count per level is printed,
-     * after the legacy output, so every legacy console line stays the same.
-     */
-    public static final String SEVERITY_FILE = "alerts_by_severity.txt";
 
     private final List<ChamberAssignment> chambers;
     private final int maxChamberThreads;
     private final SensorSource sensors;
     private final SensorProcessor processor;
-    private final ResourceMeter resources;
+    private final UsageMeter resources;
     private final ControlService control;
     private final DailyReport report;
-    private final SeverityLog severityLog;
+    private final List<DayEndOutput> dayEndOutputs;
     private final PrintStream out;
     private final PrintStream err;
 
     /**
      * @param maxChamberThreads how many chambers run at once; 1 runs them one
      *                          after another (used for the repeatable baseline)
+     * @param dayEndOutputs     files saved next to the daily report, each with one
+     *                          console line printed after the legacy output, so every
+     *                          legacy console line stays the same
      */
     public FarmSimulation(List<ChamberAssignment> chambers, int maxChamberThreads, SensorSource sensors,
-                          SensorProcessor processor, ResourceMeter resources, ControlService control,
-                          DailyReport report, SeverityLog severityLog, PrintStream out, PrintStream err) {
+                          SensorProcessor processor, UsageMeter resources, ControlService control,
+                          DailyReport report, List<DayEndOutput> dayEndOutputs,
+                          PrintStream out, PrintStream err) {
         this.chambers = List.copyOf(chambers);
         this.maxChamberThreads = maxChamberThreads;
         this.sensors = sensors;
@@ -64,7 +63,7 @@ public class FarmSimulation {
         this.resources = resources;
         this.control = control;
         this.report = report;
-        this.severityLog = severityLog;
+        this.dayEndOutputs = List.copyOf(dayEndOutputs);
         this.out = out;
         this.err = err;
     }
@@ -120,13 +119,14 @@ public class FarmSimulation {
         report.print();
         out.println("System finished sensor processing.");
         report.save(reportFile);
-        Path severityFile = reportFile.resolveSibling(SEVERITY_FILE);
-        try {
-            severityLog.save(severityFile);
-            out.println("Alerts by severity: " + severityLog.summary()
-                    + " (saved to " + severityFile.toAbsolutePath() + ")");
-        } catch (IOException e) {
-            err.println("Could not save " + severityFile + ": " + e);
+        for (DayEndOutput output : dayEndOutputs) {
+            Path file = reportFile.resolveSibling(output.fileName());
+            try {
+                output.save(file);
+                out.println(output.summaryLine() + " (saved to " + file.toAbsolutePath() + ")");
+            } catch (IOException e) {
+                err.println("Could not save " + file + ": " + e);
+            }
         }
 
         if (interrupted) {

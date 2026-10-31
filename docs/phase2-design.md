@@ -264,7 +264,7 @@ The order of effects (summary → store → print → cost → device) is the sa
 | Issue | Fix | Tool |
 |---|---|---|
 | C1 `HashMap` check-then-act | Summaries created with `computeIfAbsent`, which is atomic. Chamber state is no longer looked up at all: each monitor owns its `ChamberState` and passes the reference inside each `ControlRequest` | `ConcurrentHashMap` |
-| C2 unsynchronized `ArrayList` | `AlertStore` methods are `synchronized`; `SensorLog` uses `Collections.synchronizedList` | intrinsic lock |
+| C2 unsynchronized `ArrayList` | `AlertStore` methods are `synchronized`; `SensorLog` methods are `synchronized` too | intrinsic lock |
 | C3 non-atomic counters | water/energy in `ResourceMeter` | `AtomicInteger.addAndGet` |
 | C4 `ChamberState` read-modify-write | `set` and `adjust` are `synchronized` on the state object | intrinsic lock (one per chamber) |
 | C5 `ChamberSummary` visibility | `recordAlert` / `recordAction` / getters are `synchronized` | intrinsic lock (one per chamber) |

@@ -7,8 +7,6 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
-import org.example.report.ChamberSummaryTracker;
-
 /**
  * Producer-consumer control queue.
  *
@@ -27,23 +25,26 @@ import org.example.report.ChamberSummaryTracker;
  * If the control thread dies (an Error inside a device, or it is interrupted),
  * request() throws instead of waiting forever on a queue nobody empties
  * (legacy issue C10).
+ *
+ * It only queues and runs requests. What happens after a device runs (the
+ * report summary, the console lines) is up to its ActionListeners (Observer),
+ * so this class depends on nothing outside the device package.
  */
-public class ControlService implements Runnable {
+public class ControlService implements ControlSink, Runnable {
     private static final ControlRequest STOP = new ControlRequest("STOP", null, null);
     /** How often a blocked producer checks that the control thread is still alive. */
     private static final long LIVENESS_CHECK_MILLIS = 100;
 
     private final BlockingQueue<ControlRequest> queue;
-    private final ChamberSummaryTracker summaries;
-    private final PrintStream out;
+    private final List<ActionListener> listeners;
     private final PrintStream err;
     /** Set when run() exits other than through STOP. */
     private volatile boolean consumerDead = false;
 
-    public ControlService(int capacity, ChamberSummaryTracker summaries, PrintStream out, PrintStream err) {
+    /** @param listeners told about every device run, in this order */
+    public ControlService(int capacity, List<ActionListener> listeners, PrintStream err) {
         this.queue = new ArrayBlockingQueue<>(capacity);
-        this.summaries = summaries;
-        this.out = out;
+        this.listeners = List.copyOf(listeners);
         this.err = err;
     }
 
@@ -53,6 +54,7 @@ public class ControlService implements Runnable {
      * @throws IllegalStateException if interrupted while waiting (the interrupt flag is kept),
      *                               or if the control thread has died
      */
+    @Override
     public void request(ControlRequest request) {
         try {
             while (!consumerDead) {
@@ -145,15 +147,19 @@ public class ControlService implements Runnable {
         }
     }
 
+    /**
+     * The device runs first; a listener that throws is reported on its own, so
+     * it is never mistaken for a failed device and the other listeners still run.
+     */
     private void activate(ControlRequest request) {
         String result = request.execute();
-        String activated = request.device().name() + " Activated";
-        summaries.recordAction(request.chamberId(), activated);
-        log(request.chamberId(), activated);
-        log(request.chamberId(), result);
-    }
-
-    private void log(String chamberId, String message) {
-        out.println("\t\u001B[32m[" + chamberId + "][CONTROL] " + message + "\u001B[0m");
+        for (ActionListener listener : listeners) {
+            try {
+                listener.onAction(request.chamberId(), request.device().name(), result);
+            } catch (RuntimeException e) {
+                err.println("Action listener failed for " + request.chamberId() + " ("
+                        + request.device().name() + " did run): " + e);
+            }
+        }
     }
 }

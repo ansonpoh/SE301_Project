@@ -56,9 +56,10 @@ def read_config_text(path):
     return "".join(parts).replace("\ufeff", "")
 
 
-def csv_rows(path):
+def csv_rows(path, columns=0):
+    """With columns, the last column keeps its commas (the crops.csv message), as in FarmConfigLoader."""
     lines = read_config_text(path).splitlines()
-    return [[c.strip() for c in l.split(",")] for l in lines if l.strip() and not l.strip().startswith("#")]
+    return [[c.strip() for c in l.split(",", columns - 1)] for l in lines if l.strip() and not l.strip().startswith("#")]
 
 
 CHAMBERS = {chamber: crop for chamber, crop in csv_rows(CHAMBERS_FILE)}
@@ -67,7 +68,7 @@ BASE_WATER, BASE_ENERGY = len(CHAMBERS) * 20 * 2, len(CHAMBERS) * 20 * 1
 
 def alert_costs():
     """Full alert line (e.g. 'CH1 Tomato Low Humidity') -> (water, energy)."""
-    rows = csv_rows(CROPS_FILE)
+    rows = csv_rows(CROPS_FILE, 9)
     costs = {}
     for chamber, crop in CHAMBERS.items():
         for rule_crop, _, _, _, _, water, energy, _severity, message in rows:

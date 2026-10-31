@@ -70,13 +70,17 @@ public class FarmConfigLoader {
     private record Row(int lineNo, String[] fields) {
     }
 
-    /** crop, sensor, HIGH|LOW, limit, device|-, water, energy, severity, message */
+    /**
+     * crop, sensor, HIGH|LOW, limit, device|-, water, energy, severity, message.
+     * The message is the last column, so it may contain commas.
+     */
     public CropRegistry loadCrops(String resource, DeviceRegistry devices) {
         Map<String, List<ThresholdRule>> rulesByCrop = new LinkedHashMap<>();
         List<ThresholdRule> sharedRules = new ArrayList<>();
         Map<List<Object>, Integer> firstLineOfRule = new HashMap<>();
+        Map<List<Object>, Row> cropRuleRows = new LinkedHashMap<>();
 
-        for (Row row : readRows(resource, 9)) {
+        for (Row row : readRows(resource, 9, true)) {
             String[] f = row.fields();
             String device = f[4].equals(NO_DEVICE) ? null : f[4];
             if (device != null && !devices.contains(device)) {
@@ -103,8 +107,20 @@ public class FarmConfigLoader {
                 sharedRules.add(rule);
             } else {
                 rulesByCrop.computeIfAbsent(f[0], crop -> new ArrayList<>()).add(rule);
+                cropRuleRows.put(trigger, row);
             }
         }
+        // A crop row that repeats a shared row fires twice for that crop as well.
+        // Shared rows usually come last in the file, so this is checked at the end.
+        cropRuleRows.forEach((trigger, row) -> {
+            List<Object> shared = new ArrayList<>(trigger);
+            shared.set(0, SHARED_RULE);
+            Integer sharedLine = firstLineOfRule.get(shared);
+            if (sharedLine != null) {
+                throw error(resource, row, "same sensor, direction and limit as the shared rule on line "
+                        + sharedLine);
+            }
+        });
 
         Map<String, CropProfile> profiles = new LinkedHashMap<>();
         rulesByCrop.forEach((crop, rules) -> profiles.put(crop, new CropProfile(crop, rules)));
@@ -119,7 +135,7 @@ public class FarmConfigLoader {
     public List<ChamberAssignment> loadChambers(String resource, CropRegistry crops) {
         List<ChamberAssignment> chambers = new ArrayList<>();
         Set<String> seen = new HashSet<>();
-        for (Row row : readRows(resource, 2)) {
+        for (Row row : readRows(resource, 2, false)) {
             String[] f = row.fields();
             if (!seen.add(f[0])) {
                 throw error(resource, row, "chamber '" + f[0] + "' is listed twice");
@@ -139,7 +155,7 @@ public class FarmConfigLoader {
     /** sensor, min, max. Every sensor type must be listed exactly once. */
     public SensorRanges loadSensorRanges(String resource) {
         Map<SensorType, SensorRanges.Range> ranges = new EnumMap<>(SensorType.class);
-        for (Row row : readRows(resource, 3)) {
+        for (Row row : readRows(resource, 3, false)) {
             String[] f = row.fields();
             SensorType sensor;
             SensorRanges.Range range;
@@ -238,7 +254,8 @@ public class FarmConfigLoader {
         return null;
     }
 
-    private List<Row> readRows(String resource, int columns) {
+    /** @param lastColumnIsText the last column keeps any commas in it (free text, e.g. an alert message) */
+    private List<Row> readRows(String resource, int columns, boolean lastColumnIsText) {
         String text;
         try {
             text = read(resource);
@@ -253,7 +270,8 @@ public class FarmConfigLoader {
             if (line.isBlank() || line.strip().startsWith("#")) {
                 continue;
             }
-            String[] fields = line.split(",", -1);   // -1 keeps trailing empty columns, so they are counted
+            // -1 keeps trailing empty columns, so they are counted
+            String[] fields = line.split(",", lastColumnIsText ? columns : -1);
             if (fields.length != columns) {
                 throw new IllegalArgumentException(resource + " line " + lineNo
                         + ": expected " + columns + " columns but found " + fields.length);
