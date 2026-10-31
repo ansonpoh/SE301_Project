@@ -25,14 +25,14 @@ public class DailyReport {
     private static final String HEADER = "===== DAILY REPORT =====";
 
     private final AlertStore alerts;
-    private final ResourceMeter resources;
+    private final UsageTotals resources;
     private final ChamberSummaryTracker summaries;
     private final PrintStream out;
     private final Clock clock;
     /** "Archived N alerts", "Daily Report", ... in the order they happened. Main thread only. */
     private final List<String> reportLog = new ArrayList<>();
 
-    public DailyReport(AlertStore alerts, ResourceMeter resources,
+    public DailyReport(AlertStore alerts, UsageTotals resources,
                        ChamberSummaryTracker summaries, PrintStream out, Clock clock) {
         this.alerts = alerts;
         this.resources = resources;
@@ -58,7 +58,8 @@ public class DailyReport {
         reportLog.add("Daily Report");
     }
 
-    public void save(Path file) {
+    /** @return false if the file could not be written (the run then fails, see FarmSimulation) */
+    public boolean save(Path file) {
         List<String> archived = alerts.archived();
         List<String> lines = new ArrayList<>();
         lines.add(HEADER);
@@ -86,8 +87,10 @@ public class DailyReport {
             Files.createDirectories(file.toAbsolutePath().getParent());
             Files.write(file, lines, StandardCharsets.UTF_8);
             out.println("Archive report saved to: " + file.toAbsolutePath());
+            return true;
         } catch (IOException e) {
-            out.println("Could not save archive report: " + e.getMessage());
+            out.println("Could not save archive report: " + e.getMessage());   // legacy console line
+            return false;
         }
     }
 

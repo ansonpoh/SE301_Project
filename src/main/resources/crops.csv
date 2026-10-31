@@ -33,7 +33,8 @@ Cucumber,     TEMPERATURE,  LOW,   18,   -,                  0,   0,   CRITICAL,
 # Crops added for spec 4.5 (rows only, no Java changes). The default chambers.csv
 # keeps the legacy four; "java -jar run.jar demo" runs Kale, Bok Choy and Bell Pepper.
 # Bell Pepper and Eggplant use the Heating Unit, Ventilation System and Shade Controller
-# (spec 3.3), which no legacy crop uses.
+# (spec 3.3), which no legacy crop uses. Eggplant's high-light limit is 1000 lux, below
+# the demo light sensor's 1100 lux maximum (demo/sensors.csv), so it can fire there too.
 Kale,         TEMPERATURE,  HIGH,  24,   Cooling Fan,        0,   8,   CRITICAL,  {crop} High Temp
 Kale,         TEMPERATURE,  LOW,   12,   -,                  0,   12,  CRITICAL,  {crop} Low Temp
 Kale,         HUMIDITY,     LOW,   55,   Humidifier,         15,  0,   WARNING,   {crop} Low Humidity
@@ -49,7 +50,7 @@ Bell Pepper,  LIGHT,        HIGH,  900,  Shade Controller,   0,   1,   INFO,    
 Eggplant,     TEMPERATURE,  HIGH,  30,   Cooling Fan,        0,   0,   CRITICAL,  {crop} High Temp
 Eggplant,     TEMPERATURE,  LOW,   22,   Heating Unit,       0,   12,  CRITICAL,  {crop} Low Temp
 Eggplant,     HUMIDITY,     HIGH,  85,   Ventilation System, 0,   3,   WARNING,   {crop} High Humidity
-Eggplant,     LIGHT,        HIGH,  1100, Shade Controller,   0,   1,   INFO,      {crop} High Light Level
+Eggplant,     LIGHT,        HIGH,  1000, Shade Controller,   0,   1,   INFO,      {crop} High Light Level
 #
 # Rules every crop shares (the legacy global light and nutrient thresholds).
 *,            LIGHT,        LOW,   500,  Grow Light,         0,   0,   INFO,      Low Light Level

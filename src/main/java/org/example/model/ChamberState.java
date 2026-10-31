@@ -9,8 +9,8 @@ import java.util.function.DoubleUnaryOperator;
  *
  * Written by the chamber's monitor thread (new readings) and by the control
  * thread (device adjustments), so every method is synchronized on this object.
- * adjust() makes a device's read-modify-write atomic, which the legacy
- * activateControl() did not.
+ * adjust(), change() and changeAll() make a device's read-modify-write atomic, which the
+ * legacy activateControl() did not.
  */
 public class ChamberState {
     private final Map<SensorType, Double> values = new EnumMap<>(SensorType.class);
@@ -44,5 +44,17 @@ public class ChamberState {
         double after = change.applyAsDouble(before);
         values.put(type, after);
         return new Change(before, after);
+    }
+
+    /**
+     * Applies changes to several readings as one atomic step, for a device that
+     * changes more than one (the Ventilation System), and returns each reading
+     * before and after. Like change(), each change is a plain function of one
+     * reading, so nothing outside this object runs while its lock is held.
+     */
+    public synchronized Map<SensorType, Change> changeAll(Map<SensorType, DoubleUnaryOperator> changes) {
+        Map<SensorType, Change> result = new EnumMap<>(SensorType.class);
+        changes.forEach((type, change) -> result.put(type, change(type, change)));
+        return result;
     }
 }

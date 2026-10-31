@@ -23,6 +23,7 @@ import org.example.alert.Severity;
 import org.example.crop.CropProfile;
 import org.example.crop.CropRegistry;
 import org.example.crop.ThresholdRule;
+import org.example.device.Device;
 import org.example.device.DeviceRegistry;
 import org.example.model.SensorType;
 import org.example.sensor.SensorRanges;
@@ -52,11 +53,6 @@ public class FarmConfigLoader {
     private final Path configDir;
     private final PrintStream notices;
 
-    /** Built-in files only; warnings go to System.err. */
-    public FarmConfigLoader() {
-        this(null, System.err);
-    }
-
     /**
      * @param configDir folder whose files override the built-in ones, or null for none
      * @param notices   where to say which override file was used, and print warnings
@@ -82,9 +78,11 @@ public class FarmConfigLoader {
 
         for (Row row : readRows(resource, 9, true)) {
             String[] f = row.fields();
-            String device = f[4].equals(NO_DEVICE) ? null : f[4];
-            if (device != null && !devices.contains(device)) {
-                throw error(resource, row, "unknown device '" + device + "'");
+            // Resolved once here, so a reading never looks a device up by name.
+            Device device = null;
+            if (!f[4].equals(NO_DEVICE)) {
+                device = devices.find(f[4])
+                        .orElseThrow(() -> error(resource, row, "unknown device '" + f[4] + "'"));
             }
             ThresholdRule rule;
             try {
@@ -194,11 +192,15 @@ public class FarmConfigLoader {
                 return decode(resource, Files.readAllBytes(file));
             }
         }
+        // The built-in file is part of run.jar, so failing to read it is a broken
+        // build (IllegalStateException, exit status 3), not an invalid config file.
         try (InputStream in = FarmConfigLoader.class.getResourceAsStream("/" + resource)) {
             if (in == null) {
                 throw new IllegalStateException("Missing resource: " + resource);
             }
             return decode(resource, in.readAllBytes());
+        } catch (IOException e) {
+            throw new IllegalStateException("Could not read built-in resource " + resource + ": " + e, e);
         }
     }
 

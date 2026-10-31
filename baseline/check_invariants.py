@@ -11,8 +11,11 @@ from the archived alert list. If they don't match, an update was lost.
 These invariants only hold if every chamber thread finished, so a crashed thread
 is reported on its own.
 
-Per-alert costs come from src/main/resources/crops.csv (the legacy costs are the
-same numbers). The chamber list comes from $FARM_CHAMBERS, default
+Per-alert costs for the six legacy crops come from LEGACY_COSTS below, copied
+from the if-branches of baseline/legacy/org/example/SVFRMS.java, so the check
+does not trust the refactored crops.csv. If crops.csv disagrees, a WARNING is
+printed and the legacy cost is used. Crops the legacy code never had (Kale, Bok
+Choy, Bell Pepper, Eggplant) are priced from src/main/resources/crops.csv. The chamber list comes from $FARM_CHAMBERS, default
 baseline/legacy/chambers.csv (the 4 legacy chambers). Set $FARM_CONFIG to the
 folder passed to run.jar: as in FarmConfigLoader, a crops.csv or chambers.csv in
 it replaces the file above.
@@ -66,14 +69,41 @@ CHAMBERS = {chamber: crop for chamber, crop in csv_rows(CHAMBERS_FILE)}
 BASE_WATER, BASE_ENERGY = len(CHAMBERS) * 20 * 2, len(CHAMBERS) * 20 * 1
 
 
+# Alert text after the chamber id -> (water L, energy kWh), from the legacy processSensor().
+LEGACY_COSTS = {
+    "Tomato": {"Tomato High Temp": (0, 10), "Tomato Low Temp": (0, 15),
+               "Tomato High Humidity": (0, 0), "Tomato Low Humidity": (20, 0),
+               "Tomato Low Soil Moisture": (50, 0)},
+    "Strawberry": {"Strawberry High Temp": (0, 10), "Strawberry Low Temp": (0, 15),
+                   "Strawberry High Humidity": (0, 0), "Strawberry Low Humidity": (25, 0)},
+    "Lettuce": {"Lettuce High Temp": (0, 0), "Lettuce Low Temp": (0, 0)},
+    "Spinach": {"Spinach High Temp": (0, 0), "Spinach Low Temp": (0, 0)},
+    "Chili": {"Chili High Temp": (0, 0), "Chili Low Temp": (0, 0)},
+    "Cucumber": {"Cucumber High Temp": (0, 0), "Cucumber Low Temp": (0, 0)},
+}
+LEGACY_SHARED = {"Low Light Level": (0, 0), "Low Nutrient Level": (0, 0)}  # every crop
+
+
 def alert_costs():
     """Full alert line (e.g. 'CH1 Tomato Low Humidity') -> (water, energy)."""
     rows = csv_rows(CROPS_FILE, 9)
     costs = {}
     for chamber, crop in CHAMBERS.items():
+        legacy = {**LEGACY_COSTS[crop], **LEGACY_SHARED} if crop in LEGACY_COSTS else None
+        configured = {}
         for rule_crop, _, _, _, _, water, energy, _severity, message in rows:
             if rule_crop in (crop, "*"):
-                costs[chamber + " " + message.replace("{crop}", crop)] = (int(water), int(energy))
+                configured[message.replace("{crop}", crop)] = (int(water), int(energy))
+        if legacy is None:
+            table = configured
+        else:
+            for text in sorted(set(legacy) | set(configured)):
+                if legacy.get(text) != configured.get(text):
+                    print(f"WARNING: {crop} '{text}': legacy {legacy.get(text)} != crops.csv {configured.get(text)}"
+                          " (legacy cost used)", file=sys.stderr)
+            table = legacy
+        for text, cost in table.items():
+            costs[chamber + " " + text] = cost
     return costs
 
 
@@ -100,7 +130,7 @@ def main(stdout_path, report_path):
     # "null" is an archive slot lost by the legacy ArrayList race.
     unpriced = sorted({a for a in archived if a not in COSTS and "Sensor Failure" not in a and a != "null"})
     if unpriced:
-        sys.exit(f"check_invariants: no crops.csv rule for {unpriced[:3]} (chambers: {CHAMBERS_FILE}, crops: {CROPS_FILE})")
+        sys.exit(f"check_invariants: no cost rule for {unpriced[:3]} (chambers: {CHAMBERS_FILE}, crops: {CROPS_FILE})")
 
     if crashes:
         problems.append("thread crashed: " + ", ".join(sorted(set(crashes))))

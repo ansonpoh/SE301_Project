@@ -27,11 +27,7 @@ public class ChamberSummaryTracker implements AlertListener, ActionListener {
 
     @Override
     public void onAction(String chamberId, String deviceName, String result) {
-        recordAction(chamberId, deviceName + " Activated");
-    }
-
-    public void recordAction(String chamberId, String action) {
-        summaryFor(chamberId).recordAction(action);
+        summaryFor(chamberId).recordAction(deviceName + " Activated");
     }
 
     /** Summaries sorted by chamber id, for the report. */

@@ -8,13 +8,15 @@ import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.example.sensor.ReadingLog;
+
 /**
  * Timestamped log of every reading processed. The legacy code collected it
  * but never used it; it is now saved as archive/sensor_log.txt, a record of
  * the day's environmental readings. Chamber threads record at the same time,
  * so all access is synchronized on this log.
  */
-public class SensorLog implements DayEndOutput {
+public class SensorLog implements ReadingLog, DayEndOutput {
     public static final String FILE_NAME = "sensor_log.txt";
 
     private final List<String> entries = new ArrayList<>();
@@ -24,6 +26,7 @@ public class SensorLog implements DayEndOutput {
         this.clock = clock;
     }
 
+    @Override
     public void record(String message) {
         String entry = Timestamps.now(clock) + " : " + message;   // formatted outside the lock
         synchronized (this) {

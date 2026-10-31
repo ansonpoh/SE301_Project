@@ -33,7 +33,7 @@ Two data files changed. **No Java file was edited, added or recompiled by hand**
 
 ## Later additions
 
-- **Bell Pepper and Eggplant** were added the same way (rows only). They use the three spec 3.3 devices the legacy code lacked: Heating Unit (low temperature), Ventilation System (high humidity) and Shade Controller (high light). Each device is one new `Device` class plus one `register` line in `SVFRMS`; no other class changed.
+- **Bell Pepper and Eggplant** were added the same way (rows only). They use the three spec 3.3 devices the legacy code lacked: Heating Unit (low temperature), Ventilation System (high humidity) and Shade Controller (high light). Each device is one new `Device` class plus one `register` line in `SVFRMS`; no other class changed. Eggplant's high-light limit is 1000 lux (it was 1100): `demo/sensors.csv` treats a light reading above 1100 lux as a sensor failure, so with a limit of 1100 the rule could never fire there.
 - **`demo/sensors.csv`** models a light sensor that reads at most 1100 lux, so `java -jar run.jar demo` also shows CRITICAL Sensor Failure alerts (spec 3.4). The built-in `sensors.csv` is unchanged, so a default run shows none.
 
 ## Why no Java change was needed (Open/Closed)

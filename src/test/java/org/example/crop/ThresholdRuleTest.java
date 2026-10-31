@@ -9,16 +9,18 @@ import java.util.Map;
 
 import org.example.alert.Severity;
 import org.example.crop.ThresholdRule.Direction;
+import org.example.device.CoolingFan;
+import org.example.device.GrowLight;
 import org.example.model.SensorType;
 import org.junit.jupiter.api.Test;
 
 class ThresholdRuleTest {
     private static final ThresholdRule TOMATO_HIGH = new ThresholdRule(
-            SensorType.TEMPERATURE, Direction.HIGH, 28, "Cooling Fan", 0, 10, Severity.CRITICAL, "{crop} High Temp");
+            SensorType.TEMPERATURE, Direction.HIGH, 28, new CoolingFan(), 0, 10, Severity.CRITICAL, "{crop} High Temp");
     private static final ThresholdRule TOMATO_LOW = new ThresholdRule(
             SensorType.TEMPERATURE, Direction.LOW, 22, null, 0, 15, Severity.CRITICAL, "{crop} Low Temp");
     private static final ThresholdRule LOW_LIGHT = new ThresholdRule(
-            SensorType.LIGHT, Direction.LOW, 500, "Grow Light", 0, 0, Severity.INFO, "Low Light Level");
+            SensorType.LIGHT, Direction.LOW, 500, new GrowLight(), 0, 0, Severity.INFO, "Low Light Level");
 
     @Test
     void comparisonIsStrictLikeTheLegacyCode() {

@@ -1,5 +1,9 @@
 package org.example;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 
 /**
@@ -29,7 +33,8 @@ public class BaselineHarness {
         Thread control = new SVFRMS.ControlThread();
         control.start();
 
-        String[][] chambers = {{"CH1", "Tomato"}, {"CH2", "Strawberry"}, {"CH3", "Lettuce"}, {"CH4", "Chili"}};
+        String[][] chambers = args.length > 1 ? readChambers(Path.of(args[1]))
+                : new String[][] {{"CH1", "Tomato"}, {"CH2", "Strawberry"}, {"CH3", "Lettuce"}, {"CH4", "Chili"}};
         for (String[] c : chambers) {
             Thread t = new SVFRMS.ChamberThread(c[0], c[1]);
             t.start();
@@ -46,5 +51,19 @@ public class BaselineHarness {
         SVFRMS.generateDailyReport();
         System.out.println("System finished sensor processing.");
         SVFRMS.saveArchiveReport();
+    }
+
+    /** "CH1, Tomato" rows; # comments and blank lines skipped, fields trimmed (as in FarmConfigLoader). */
+    private static String[][] readChambers(Path file) throws Exception {
+        List<String[]> rows = new ArrayList<>();
+        for (String line : Files.readAllLines(file)) {
+            String t = line.strip();
+            if (t.isEmpty() || t.startsWith("#")) {
+                continue;
+            }
+            String[] f = t.split(",");
+            rows.add(new String[] {f[0].strip(), f[1].strip()});
+        }
+        return rows.toArray(new String[0][]);
     }
 }

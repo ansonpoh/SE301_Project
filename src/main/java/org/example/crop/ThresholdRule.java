@@ -1,6 +1,7 @@
 package org.example.crop;
 
 import org.example.alert.Severity;
+import org.example.device.Device;
 import org.example.model.SensorType;
 
 /**
@@ -8,11 +9,11 @@ import org.example.model.SensorType;
  * with SEVERITY, charge the costs and (optionally) start DEVICE".
  * Replaces one copy of the legacy TRACK_ALERT + CREATE_ALERT block.
  *
- * @param deviceName device to request, or null if the rule triggers no device
+ * @param device     device to request, or null if the rule triggers no device
  * @param message    alert text after the chamber id; "{crop}" is replaced by the crop name
  */
 public record ThresholdRule(SensorType sensor, Direction direction, double limit,
-                            String deviceName, int waterCost, int energyCost, Severity severity,
+                            Device device, int waterCost, int energyCost, Severity severity,
                             String message) {
 
     public enum Direction { HIGH, LOW }
@@ -37,7 +38,7 @@ public record ThresholdRule(SensorType sensor, Direction direction, double limit
     }
 
     public boolean triggersDevice() {
-        return deviceName != null;
+        return device != null;
     }
 
     /** e.g. "CH1 Tomato High Temp" or "CH3 Low Light Level". */

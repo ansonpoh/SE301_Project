@@ -7,6 +7,8 @@ What is removed or reshaped (and why):
   - "Archive report saved to: <abs path>" -> depends on working directory
   - "Alerts by severity: ..."         -> extension output (spec 3.4), not in the legacy program
   - "Sensor log: ..."                 -> extension output (saved sensor log), not in the legacy program
+  - "Resource usage: ..."             -> extension output (spec 3.5 usage report), not in the legacy program
+  - "Nutrient usage: ..."             -> extension output (spec 3.5 nutrient report), not in the legacy program
   - ANSI colour codes                 -> cosmetic
   - CONTROL lines                     -> their position and numeric values depend on
                                          control-thread timing, so they are reported
@@ -33,7 +35,7 @@ def main(stdout_path, report_path):
                 if m:
                     control_counts[(m.group(1), m.group(2))] += 1
                 continue
-            if line.startswith(("Alerts by severity:", "Sensor log:")):
+            if line.startswith(("Alerts by severity:", "Sensor log:", "Resource usage:", "Nutrient usage:")):
                 continue
             if line.startswith("Archive report saved to:"):
                 line = "Archive report saved to: <path>"

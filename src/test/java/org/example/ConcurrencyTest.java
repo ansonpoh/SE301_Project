@@ -28,16 +28,22 @@ class ConcurrencyTest {
     @RepeatedTest(3)
     void resourceMeterLosesNoUpdates() throws InterruptedException {
         ResourceMeter meter = new ResourceMeter();
+        int chambers = 4;   // every thread also races to create each chamber's counters
 
         TestFixtures.runConcurrently(THREADS, () -> {
             for (int i = 0; i < OPERATIONS; i++) {
-                meter.addWater(2);
-                meter.addEnergy(1);
+                meter.addWater("CH" + i % chambers, 2);
+                meter.addEnergy("CH" + i % chambers, 1);
             }
         });
 
         assertEquals(2 * TOTAL, meter.water());
         assertEquals(TOTAL, meter.energy());
+        assertEquals(chambers, meter.usageByChamber().size());
+        meter.usageByChamber().values().forEach(usage -> {
+            assertEquals(2 * TOTAL / chambers, usage.water());
+            assertEquals(TOTAL / chambers, usage.energy());
+        });
     }
 
     /** C2, C7: legacy alerts.add() was unsynchronized and archiving locked only one side. */
@@ -87,7 +93,7 @@ class ConcurrencyTest {
             for (int i = 0; i < OPERATIONS; i++) {
                 String chamber = chambers[i % chambers.length];
                 tracker.onAlert(new Alert(chamber, "Tomato", chamber + " alert", Severity.WARNING));
-                tracker.recordAction(chamber, "Cooling Fan Activated");
+                tracker.onAction(chamber, "Cooling Fan", "Temperature reduced to 19.0C");
             }
         });
 

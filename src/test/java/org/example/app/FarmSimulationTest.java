@@ -2,6 +2,7 @@ package org.example.app;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -15,7 +16,9 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.example.SVFRMS;
 import org.example.TestFixtures;
@@ -25,15 +28,20 @@ import org.example.alert.Severity;
 import org.example.crop.CropRegistry;
 import org.example.crop.ThresholdRule;
 import org.example.device.ControlService;
+import org.example.device.ControlSink;
+import org.example.device.CoolingFan;
 import org.example.device.Device;
-import org.example.device.DeviceRegistry;
 import org.example.model.ChamberState;
 import org.example.model.SensorType;
 import org.example.report.ChamberSummaryTracker;
 import org.example.report.DailyReport;
+import org.example.report.NutrientUsageReport;
 import org.example.report.ResourceMeter;
+import org.example.report.ResourceUsageReport;
 import org.example.report.SensorLog;
 import org.example.report.SeverityLog;
+import org.example.sensor.ChamberMonitor;
+import org.example.sensor.ReadingLog;
 import org.example.sensor.SensorProcessor;
 import org.example.sensor.SensorSource;
 import org.junit.jupiter.api.Test;
@@ -63,6 +71,94 @@ class FarmSimulationTest {
     void demoConfigRunsTheNewCrops() throws Exception {
         // +10 kWh per Tomato and Strawberry, +8 kWh per Kale and Bok Choy High Temp alert
         assertExactTotals(Path.of(System.getProperty("basedir", ".")).resolve("demo"), List.of("CH1", "CH2", "CH3", "CH4", "CH5", "CH6", "CH7"), 2 * 10 + 2 * 8);
+    }
+
+    /**
+     * A daily report that cannot be written fails the run (exit status 1), it is
+     * not just a console line. Only daily_report.txt is blocked (a folder is in
+     * its place); the other outputs save fine, so only DailyReport can fail the run.
+     */
+    @Test
+    void unsavedReportFailsTheRun() throws Exception {
+        Path reportFile = Files.createDirectories(dir.resolve("archive").resolve("daily_report.txt"));
+        PrintStream silent = new PrintStream(new ByteArrayOutputStream());
+
+        boolean ok = assertTimeoutPreemptively(Duration.ofSeconds(20), () ->
+                SVFRMS.createSimulation(TestFixtures.fixed(TestFixtures.HOT_CHAMBER), 1, null, silent, silent,
+                        Clock.systemUTC()).run(reportFile));
+
+        assertFalse(ok);
+        assertTrue(Files.isRegularFile(reportFile.resolveSibling(SensorLog.FILE_NAME)));
+        assertTrue(Files.isRegularFile(reportFile.resolveSibling(SeverityLog.FILE_NAME)));
+    }
+
+    /** An interrupted chamber stops at its next cycle instead of raising alerts after the report. */
+    @Test
+    void interruptedChamberStopsReading() {
+        AtomicInteger reads = new AtomicInteger();
+        SensorSource sensors = type -> {
+            reads.incrementAndGet();
+            return TestFixtures.HOT_CHAMBER.get(type);
+        };
+        PrintStream silent = new PrintStream(new ByteArrayOutputStream());
+        CropRegistry crops = new CropRegistry(Map.of(), List.of());
+        SensorProcessor processor = new SensorProcessor(crops, new AlertPublisher(silent), new ResourceMeter(),
+                request -> { }, message -> { }, new FarmConfigLoader(null, null).loadSensorRanges("sensors.csv"));
+
+        ChamberMonitor monitor = new ChamberMonitor("CH1", "Tomato", sensors, processor, new ResourceMeter());
+        Thread.currentThread().interrupt();
+        try {
+            monitor.run();
+        } finally {
+            Thread.interrupted();
+        }
+
+        assertEquals(0, reads.get());
+        assertEquals(0, monitor.cyclesDone(), "FarmSimulation reports it as a partial day");
+    }
+
+    /**
+     * A chamber interrupted while waiting to queue a device request stops like
+     * one interrupted between readings: a partial day, not a chamber failure.
+     */
+    @Test
+    void chamberInterruptedWhileQueueingStopsCleanly() {
+        AtomicInteger requests = new AtomicInteger();
+        ControlSink interrupted = request -> {
+            requests.incrementAndGet();
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Interrupted while queueing", new InterruptedException());
+        };
+        ChamberMonitor monitor = hotTomatoMonitor(interrupted);
+        try {
+            monitor.run();   // must not throw
+            assertTrue(Thread.currentThread().isInterrupted(), "interrupt flag must be kept");
+        } finally {
+            Thread.interrupted();
+        }
+
+        assertEquals(1, requests.get(), "stops at the interrupted request");
+        assertEquals(0, monitor.cyclesDone(), "FarmSimulation reports it as a partial day");
+    }
+
+    /** Any other refusal (the control thread died) is still a chamber failure (issue C11). */
+    @Test
+    void deadControlThreadStillFailsTheChamber() {
+        ControlSink dead = request -> {
+            throw new IllegalStateException("Control thread has stopped");
+        };
+        assertThrows(IllegalStateException.class, () -> hotTomatoMonitor(dead).run());
+    }
+
+    /** CH1 Tomato at 35C, with one rule that queues a Cooling Fan request on every high reading. */
+    private static ChamberMonitor hotTomatoMonitor(ControlSink control) {
+        PrintStream silent = new PrintStream(new ByteArrayOutputStream());
+        CropRegistry crops = new CropRegistry(Map.of(), List.of(new ThresholdRule(SensorType.TEMPERATURE,
+                ThresholdRule.Direction.HIGH, 30, new CoolingFan(), 0, 0, Severity.CRITICAL, "{crop} High Temp")));
+        SensorProcessor processor = new SensorProcessor(crops, new AlertPublisher(silent), new ResourceMeter(),
+                control, message -> { }, new FarmConfigLoader(null, null).loadSensorRanges("sensors.csv"));
+        return new ChamberMonitor("CH1", "Tomato", TestFixtures.fixed(TestFixtures.HOT_CHAMBER), processor,
+                new ResourceMeter());
     }
 
     private void assertExactTotals(Path configDir, List<String> chambers, int extraEnergyPerCycle) throws Exception {
@@ -111,6 +207,25 @@ class FarmSimulationTest {
         assertEquals(readings, sensorLog.size());
         assertTrue(sensorLog.stream().anyMatch(line -> line.endsWith(" : Processing Tomato Temperature = 35.0")));
         assertTrue(lines.stream().anyMatch(line -> line.startsWith("Sensor log: " + readings + " readings (saved to ")));
+
+        // Extension (spec 3.5): per-chamber water and energy, adding up to the daily report's totals.
+        // No rule here costs water, so each chamber uses only its 2 L per cycle.
+        List<String> usage = Files.readAllLines(reportFile.resolveSibling(ResourceUsageReport.FILE_NAME));
+        for (String chamber : chambers) {
+            assertTrue(usage.contains(chamber + ": " + 2 * CYCLES), chamber + " water");
+        }
+        assertTrue(usage.contains("Total: " + water));
+        assertTrue(usage.contains("Total: " + energy));
+        assertTrue(lines.stream().anyMatch(line -> line.startsWith("Resource usage: water " + water + " L, energy "
+                + energy + " kWh across " + chambers.size() + " chambers (saved to ")));
+
+        // Extension (spec 3.5): nutrient doses per chamber. Nutrient is in range, so every chamber has 0.
+        List<String> nutrients = Files.readAllLines(reportFile.resolveSibling(NutrientUsageReport.FILE_NAME));
+        for (String chamber : chambers) {
+            assertTrue(nutrients.contains(chamber + ": 0"), chamber + " nutrient doses");
+        }
+        assertTrue(lines.stream().anyMatch(line -> line.startsWith("Nutrient usage: 0 Nutrient Injector doses across "
+                + chambers.size() + " chambers (saved to ")));
     }
 
     /**
@@ -171,12 +286,71 @@ class FarmSimulationTest {
     void failingChamberIsReportedNotSwallowed() throws Exception {
         // Legacy issue C11: a crashed chamber thread went unnoticed. A sensor fault
         // is now an alert, so simulate a crash with an Error instead.
+        ByteArrayOutputStream errors = new ByteArrayOutputStream();
+        PrintStream err = new PrintStream(errors, true, StandardCharsets.UTF_8);
         PrintStream silent = new PrintStream(new ByteArrayOutputStream());
         boolean ok = SVFRMS.createSimulation(type -> {
             throw new AssertionError("simulated crash");
-        }, Integer.MAX_VALUE, silent).run(dir.resolve("archive").resolve("daily_report.txt"));
+        }, Integer.MAX_VALUE, null, silent, err, Clock.systemUTC())
+                .run(dir.resolve("archive").resolve("daily_report.txt"));
 
         assertFalse(ok);
+        String text = errors.toString(StandardCharsets.UTF_8);
+        assertTrue(text.contains("ERROR: chamber CH1 failed"), text);
+        assertFalse(text.contains("stopped after"), "a failed chamber is reported once, not again as a partial day");
+    }
+
+    /**
+     * Legacy issue C11 on the interrupted path: run() is interrupted while
+     * waiting for CH1, after CH2 has already crashed. CH2's error must still be
+     * printed, not only a "partial day" warning.
+     */
+    @Test
+    void chamberFailureIsReportedWhenTheRunIsInterrupted() throws Exception {
+        ByteArrayOutputStream errors = new ByteArrayOutputStream();
+        PrintStream err = new PrintStream(errors, true, StandardCharsets.UTF_8);
+        PrintStream silent = new PrintStream(new ByteArrayOutputStream());
+
+        // The reading log names the crop: CH2 (Lettuce) crashes, CH1 (Tomato) waits until interrupted.
+        CountDownLatch crashed = new CountDownLatch(1);
+        ReadingLog readingLog = message -> {
+            if (message.contains("Lettuce")) {
+                crashed.countDown();
+                throw new AssertionError("simulated crash");
+            }
+            try {
+                Thread.sleep(Long.MAX_VALUE);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        };
+        CropRegistry crops = new CropRegistry(Map.of(), List.of());
+        AlertStore store = new AlertStore();
+        ChamberSummaryTracker summaries = new ChamberSummaryTracker();
+        AlertPublisher alerts = new AlertPublisher(err);
+        ResourceMeter resources = new ResourceMeter();
+        ControlService control = new ControlService(10, List.of(summaries), err);
+        SensorProcessor processor = new SensorProcessor(crops, alerts, resources, control, readingLog,
+                new FarmConfigLoader(null, null).loadSensorRanges("sensors.csv"));
+        FarmSimulation simulation = new FarmSimulation(
+                List.of(new ChamberAssignment("CH1", "Tomato"), new ChamberAssignment("CH2", "Lettuce")), 2,
+                TestFixtures.fixed(TestFixtures.HOT_CHAMBER), processor, alerts, resources, control,
+                new DailyReport(store, resources, summaries, silent, Clock.systemUTC()),
+                List.of(), silent, err);
+
+        AtomicBoolean ok = new AtomicBoolean(true);
+        Thread main = new Thread(() -> ok.set(simulation.run(dir.resolve("archive").resolve("daily_report.txt"))));
+        assertTimeoutPreemptively(Duration.ofSeconds(20), () -> {
+            main.start();
+            crashed.await();
+            main.interrupt();
+            main.join();
+        });
+
+        assertFalse(ok.get());
+        String text = errors.toString(StandardCharsets.UTF_8);
+        assertTrue(text.contains("ERROR: chamber CH2 failed"), text);
+        assertFalse(text.contains("chamber CH2 stopped after"), "reported once, with its error");
     }
 
     /** An interrupted run still stops every thread, writes the report and keeps the interrupt flag. */
@@ -221,20 +395,20 @@ class FarmSimulationTest {
         SensorSource sensors = type -> type == SensorType.TEMPERATURE && first.getAndSet(false)
                 ? 35.0 : TestFixtures.HOT_CHAMBER.get(type) - (type == SensorType.TEMPERATURE ? 10 : 0);
         CropRegistry crops = new CropRegistry(Map.of(), List.of(new ThresholdRule(SensorType.TEMPERATURE,
-                ThresholdRule.Direction.HIGH, 30, "Crashing", 0, 0, Severity.CRITICAL, "{crop} High Temp")));
-        DeviceRegistry devices = new DeviceRegistry().register(crashing);
+                ThresholdRule.Direction.HIGH, 30, crashing, 0, 0, Severity.CRITICAL, "{crop} High Temp")));
         AlertStore store = new AlertStore();
         ChamberSummaryTracker summaries = new ChamberSummaryTracker();
-        AlertPublisher alerts = new AlertPublisher();
+        AlertPublisher alerts = new AlertPublisher(err);
         alerts.subscribe(summaries);
         alerts.subscribe(store);
         ResourceMeter resources = new ResourceMeter();
         ControlService control = new ControlService(10, List.of(summaries), err);
         SensorLog sensorLog = new SensorLog(Clock.systemUTC());
-        SensorProcessor processor = new SensorProcessor(crops, devices, alerts, resources, control,
-                sensorLog, new FarmConfigLoader().loadSensorRanges("sensors.csv"));
+        SensorProcessor processor = new SensorProcessor(crops, alerts, resources, control,
+                sensorLog, new FarmConfigLoader(null, null).loadSensorRanges("sensors.csv"));
         FarmSimulation simulation = new FarmSimulation(List.of(new ChamberAssignment("CH1", "Tomato")), 1, sensors,
-                processor, resources, control, new DailyReport(store, resources, summaries, silent, Clock.systemUTC()),
+                processor, alerts, resources, control,
+                new DailyReport(store, resources, summaries, silent, Clock.systemUTC()),
                 List.of(new SeverityLog(), sensorLog), silent, err);
 
         boolean ok = assertTimeoutPreemptively(Duration.ofSeconds(20),
@@ -243,5 +417,44 @@ class FarmSimulationTest {
         assertFalse(ok);
         String text = errors.toString(StandardCharsets.UTF_8);
         assertTrue(text.contains("Control thread failed"), text);
+    }
+
+    /**
+     * A listener that throws no longer stops the chamber, but the report may
+     * then be short, so the run must still fail (exit status 1).
+     */
+    @Test
+    void failingAlertListenerFailsTheRun() throws Exception {
+        ByteArrayOutputStream errors = new ByteArrayOutputStream();
+        PrintStream err = new PrintStream(errors, true, StandardCharsets.UTF_8);
+        PrintStream silent = new PrintStream(new ByteArrayOutputStream());
+
+        // One alert per cycle (35C > 30C), no device.
+        CropRegistry crops = new CropRegistry(Map.of(), List.of(new ThresholdRule(SensorType.TEMPERATURE,
+                ThresholdRule.Direction.HIGH, 30, null, 0, 0, Severity.CRITICAL, "{crop} High Temp")));
+        AlertStore store = new AlertStore();
+        ChamberSummaryTracker summaries = new ChamberSummaryTracker();
+        AlertPublisher alerts = new AlertPublisher(err);
+        alerts.subscribe(alert -> {
+            throw new IllegalStateException("broken listener");
+        });
+        alerts.subscribe(store);
+        ResourceMeter resources = new ResourceMeter();
+        ControlService control = new ControlService(10, List.of(summaries), err);
+        SensorLog sensorLog = new SensorLog(Clock.systemUTC());
+        SensorProcessor processor = new SensorProcessor(crops, alerts, resources, control,
+                sensorLog, new FarmConfigLoader(null, null).loadSensorRanges("sensors.csv"));
+        FarmSimulation simulation = new FarmSimulation(List.of(new ChamberAssignment("CH1", "Tomato")), 1,
+                TestFixtures.fixed(TestFixtures.HOT_CHAMBER), processor, alerts, resources, control,
+                new DailyReport(store, resources, summaries, silent, Clock.systemUTC()),
+                List.of(sensorLog), silent, err);
+
+        boolean ok = assertTimeoutPreemptively(Duration.ofSeconds(20),
+                () -> simulation.run(dir.resolve("archive").resolve("daily_report.txt")));
+
+        assertFalse(ok);
+        assertEquals(CYCLES, store.generatedCount(), "every alert still reaches the other listeners");
+        String text = errors.toString(StandardCharsets.UTF_8);
+        assertTrue(text.contains(CYCLES + " alert deliveries failed"), text);
     }
 }

@@ -14,3 +14,8 @@ cp_join() {
   done
   printf '%s' "$out"
 }
+
+# A path the JVM can open: Windows form under Git Bash, unchanged elsewhere.
+native_path() {
+  if command -v cygpath > /dev/null 2>&1; then cygpath -w "$1"; else printf '%s' "$1"; fi
+}

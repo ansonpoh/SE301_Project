@@ -85,8 +85,11 @@ class DeviceTest {
 
         assertEquals(18, applyTo(new VentilationSystem(), SensorType.TEMPERATURE, 19));
         assertEquals(30, applyTo(new VentilationSystem(), SensorType.HUMIDITY, 32));
-        // a reading already below the floor is never raised
+        // a reading already below the floor is never raised, and the log does not claim a reduction
         assertEquals(15, applyTo(new VentilationSystem(), SensorType.TEMPERATURE, 15));
+        state.set(SensorType.TEMPERATURE, 15);
+        state.set(SensorType.HUMIDITY, 90);
+        assertEquals("Temperature already 15.0C, humidity reduced to 85.0%", new VentilationSystem().apply(state));
     }
 
     @Test
@@ -99,8 +102,16 @@ class DeviceTest {
     @Test
     void registryFindsDevicesByName() {
         DeviceRegistry registry = new DeviceRegistry().register(new CoolingFan());
-        assertTrue(registry.contains("Cooling Fan"));
         assertEquals("Cooling Fan", registry.get("Cooling Fan").name());
         assertThrows(IllegalArgumentException.class, () -> registry.get("Misting Nozzle"));
+        assertEquals("Cooling Fan", registry.find("Cooling Fan").orElseThrow().name());
+        assertTrue(registry.find("Misting Nozzle").isEmpty());
+    }
+
+    /** A second device with the same name would silently take over every crops.csv rule for it. */
+    @Test
+    void registryRejectsADuplicateName() {
+        DeviceRegistry registry = new DeviceRegistry().register(new CoolingFan());
+        assertThrows(IllegalStateException.class, () -> registry.register(new CoolingFan()));
     }
 }

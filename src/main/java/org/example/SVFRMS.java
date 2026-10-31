@@ -30,7 +30,9 @@ import org.example.device.VentilationSystem;
 import org.example.device.WaterPump;
 import org.example.report.ChamberSummaryTracker;
 import org.example.report.DailyReport;
+import org.example.report.NutrientUsageReport;
 import org.example.report.ResourceMeter;
+import org.example.report.ResourceUsageReport;
 import org.example.report.SensorLog;
 import org.example.report.SeverityLog;
 import org.example.sensor.RandomSensorSource;
@@ -68,9 +70,14 @@ public final class SVFRMS {
         try {
             simulation = createSimulation(new RandomSensorSource(new Random()), Integer.MAX_VALUE,
                     configDir, System.out, System.err, Clock.systemDefaultZone());
-        } catch (IllegalArgumentException | IllegalStateException | UncheckedIOException e) {
+        } catch (IllegalArgumentException | UncheckedIOException e) {
             System.err.println("Invalid configuration: " + e.getMessage());
             System.exit(2);
+            return;
+        } catch (IllegalStateException e) {
+            // Not the user's CSV files: a broken build (missing resource) or a wiring mistake in this class.
+            System.err.println("Internal error: " + e.getMessage());
+            System.exit(3);
             return;
         }
         if (!simulation.run(REPORT_FILE)) {
@@ -117,10 +124,11 @@ public final class SVFRMS {
      */
     public static FarmSimulation createSimulation(SensorSource sensors, int maxChamberThreads, Path configDir,
                                                   PrintStream out, PrintStream err, Clock clock) {
+        NutrientInjector nutrientInjector = new NutrientInjector();
         DeviceRegistry devices = new DeviceRegistry()
                 .register(new CoolingFan())
                 .register(new WaterPump())
-                .register(new NutrientInjector())
+                .register(nutrientInjector)
                 .register(new Humidifier())
                 .register(new Dehumidifier())
                 .register(new GrowLight())
@@ -135,7 +143,7 @@ public final class SVFRMS {
 
         AlertStore alertStore = new AlertStore();
         ChamberSummaryTracker summaries = new ChamberSummaryTracker();
-        AlertPublisher alerts = new AlertPublisher();
+        AlertPublisher alerts = new AlertPublisher(err);
         alerts.subscribe(summaries);                     // same order as the legacy code:
         alerts.subscribe(alertStore);                    // track, store, then print
         alerts.subscribe(new ConsoleAlertPrinter(out));
@@ -143,15 +151,17 @@ public final class SVFRMS {
         alerts.subscribe(severityLog);
 
         ResourceMeter resources = new ResourceMeter();
+        // extension: nutrient doses per chamber, own file
+        NutrientUsageReport nutrientUsage = new NutrientUsageReport(nutrientInjector.name(),
+                chambers.stream().map(ChamberAssignment::chamberId).toList(), clock);
         // same order as the legacy code: track the action, then print it
         ControlService control = new ControlService(CONTROL_QUEUE_CAPACITY,
-                List.of(summaries, new ConsoleActionPrinter(out)), err);
+                List.of(summaries, new ConsoleActionPrinter(out), nutrientUsage), err);
         SensorLog sensorLog = new SensorLog(clock);
-        SensorProcessor processor = new SensorProcessor(crops, devices, alerts, resources, control, sensorLog,
-                sensorRanges);
+        SensorProcessor processor = new SensorProcessor(crops, alerts, resources, control, sensorLog, sensorRanges);
         DailyReport report = new DailyReport(alertStore, resources, summaries, out, clock);
 
-        return new FarmSimulation(chambers, maxChamberThreads, sensors, processor, resources, control, report,
-                List.of(severityLog, sensorLog), out, err);
+        return new FarmSimulation(chambers, maxChamberThreads, sensors, processor, alerts, resources, control, report,
+                List.of(severityLog, sensorLog, new ResourceUsageReport(resources, clock), nutrientUsage), out, err);
     }
 }

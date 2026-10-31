@@ -39,7 +39,7 @@ class FarmConfigLoaderTest {
             new ChamberAssignment("CH3", "Lettuce"),
             new ChamberAssignment("CH4", "Chili"));
 
-    private final FarmConfigLoader loader = new FarmConfigLoader();
+    private final FarmConfigLoader loader = new FarmConfigLoader(null, null);
     private final DeviceRegistry devices = new DeviceRegistry()
             .register(new CoolingFan()).register(new WaterPump()).register(new NutrientInjector())
             .register(new Humidifier()).register(new Dehumidifier()).register(new GrowLight())
@@ -64,7 +64,7 @@ class FarmConfigLoaderTest {
         List<ThresholdRule> tomatoTemp = crops.rulesFor("Tomato", SensorType.TEMPERATURE);
         assertEquals(2, tomatoTemp.size());
         assertEquals(28, tomatoTemp.get(0).limit());
-        assertEquals("Cooling Fan", tomatoTemp.get(0).deviceName());
+        assertEquals("Cooling Fan", tomatoTemp.get(0).device().name());
         assertEquals(10, tomatoTemp.get(0).energyCost());
         assertEquals(Severity.CRITICAL, tomatoTemp.get(0).severity());
         assertEquals(Severity.INFO, crops.rulesFor("Tomato", SensorType.LIGHT).get(0).severity());
@@ -279,9 +279,9 @@ class FarmConfigLoaderTest {
     @Test
     void newCropsUseTheSpecDevices() {
         CropRegistry crops = builtInCrops();
-        assertEquals("Ventilation System", crops.rulesFor("Bell Pepper", SensorType.HUMIDITY).get(0).deviceName());
-        assertEquals("Shade Controller", crops.rulesFor("Bell Pepper", SensorType.LIGHT).get(0).deviceName());
-        assertEquals("Heating Unit", crops.rulesFor("Eggplant", SensorType.TEMPERATURE).get(1).deviceName());
+        assertEquals("Ventilation System", crops.rulesFor("Bell Pepper", SensorType.HUMIDITY).get(0).device().name());
+        assertEquals("Shade Controller", crops.rulesFor("Bell Pepper", SensorType.LIGHT).get(0).device().name());
+        assertEquals("Heating Unit", crops.rulesFor("Eggplant", SensorType.TEMPERATURE).get(1).device().name());
     }
 
     /** Different limits on the same sensor are separate levels, not duplicates. */
