@@ -181,9 +181,9 @@ Rule: **preserve behaviour (spec section 4), fix only concurrency defects and de
 
 | Spec requirement | What we will do (minimal) |
 |---|---|
-| 4.1 Split the monolith | About 12–15 small classes in a few packages (`model`, `crop`, `device`, `alert`, `report`, `app`). `org.example.SVFRMS` stays as the entry point |
+| 4.1 Split the monolith | Small single-purpose classes in a few packages (`model`, `crop`, `sensor`, `device`, `alert`, `report`, `app`) – see Phase 2 for the list. `org.example.SVFRMS` stays as the entry point |
 | 4.2 (i) SRP | One job per class: rules, devices, the alert store, metrics, reporting, simulation |
-| 4.2 (ii) New crop without editing code | A `CropProfile` is data (thresholds, costs, which device to trigger), kept in a `CropRegistry`. Adding Kale = adding one profile entry |
+| 4.2 (ii) New crop without editing code | A `CropProfile` is data (thresholds, costs, which device to trigger), loaded into a `CropRegistry` from a small `crops.csv` resource. Adding Kale = adding rows to that file, with no Java edits |
 | 4.2 (iii) LSP | Small device interface with no "unsupported operation" methods; tasks are `Runnable`s, not `Thread` subclasses |
 | 4.2 (iv) ISP | `handleEvent` is replaced by small, specific methods/interfaces (alert listener, device) |
 | 4.2 (v) DIP | Rules depend on `Device` and alert-listener interfaces; the random sensor source is injected, which also gives us the seed for the baseline |
@@ -192,4 +192,4 @@ Rule: **preserve behaviour (spec section 4), fix only concurrency defects and de
 | 4.5 Add/remove crops | Phase 4: add Kale and Bok Choy as one profile each, and show the diff |
 | 5 Deliverables | `run.jar` via `mvn package`; README sections 3–8 |
 
-**Not doing** (overengineering for this brief): configuration files or JSON loaders, a Strategy class per crop, new devices, severity levels, new report types, dependency-injection frameworks, or extra abstraction layers with only one implementation and no smell to fix.
+**Not doing** (overengineering for this brief): JSON/YAML libraries or a general configuration framework (one ~40-line CSV reader is enough), a Strategy class per crop, new devices, severity levels, new report types, dependency-injection frameworks, or extra abstraction layers with only one implementation and no smell to fix.
