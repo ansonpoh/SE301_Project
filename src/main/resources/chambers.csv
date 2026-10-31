@@ -1,0 +1,8 @@
+# Which crop grows in which chamber. Each row runs as one chamber thread.
+# Spinach and Cucumber have rules in crops.csv but no chamber (same as the legacy code).
+#
+# chamber, crop
+CH1, Tomato
+CH2, Strawberry
+CH3, Lettuce
+CH4, Chili

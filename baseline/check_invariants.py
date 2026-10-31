@@ -31,7 +31,8 @@ def main(stdout_path, report_path):
     chambers = len(re.findall(r"^CH\d -> ", "\n".join(lines), re.M))
 
     problems = []
-    crashes = re.findall(r'Exception in thread "[^"]+" (\S+)', out)
+    crashes = re.findall(r'Exception in thread "[^"]+" (\S+)', out)  # legacy: thread died
+    crashes += re.findall(r"ERROR: chamber \S+ failed: (\S+)", out)  # refactored: reported failure
     if crashes:
         problems.append("thread crashed: " + ", ".join(sorted(set(crashes))))
     else:

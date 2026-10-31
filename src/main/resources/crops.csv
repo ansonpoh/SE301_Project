@@ -1,0 +1,32 @@
+# Crop threshold rules. One row = one alert rule.
+#
+#   crop      : crop name, or * for a rule every crop shares
+#   sensor    : TEMPERATURE, HUMIDITY, SOIL, LIGHT or NUTRIENT
+#   dir       : HIGH (alert when value > limit) or LOW (alert when value < limit)
+#   device    : device to switch on, or - for none
+#   water     : litres charged when the alert fires
+#   energy    : kWh charged when the alert fires
+#   message   : alert text after the chamber id; {crop} becomes the crop name
+#
+# To add a crop, add its rows. To remove a crop, delete its rows. No Java changes.
+#
+# crop,     sensor,      dir,  limit, device,            water, energy, message
+Tomato,     TEMPERATURE, HIGH, 28,    Cooling Fan,       0,     10,     {crop} High Temp
+Tomato,     TEMPERATURE, LOW,  22,    -,                 0,     15,     {crop} Low Temp
+Tomato,     HUMIDITY,    HIGH, 80,    Dehumidifier,      0,     0,      {crop} High Humidity
+Tomato,     HUMIDITY,    LOW,  60,    Humidifier,        20,    0,      {crop} Low Humidity
+Tomato,     SOIL,        LOW,  45,    Water Pump,        50,    0,      {crop} Low Soil Moisture
+Strawberry, TEMPERATURE, HIGH, 24,    Cooling Fan,       0,     10,     {crop} High Temp
+Strawberry, TEMPERATURE, LOW,  18,    -,                 0,     15,     {crop} Low Temp
+Strawberry, HUMIDITY,    HIGH, 85,    Dehumidifier,      0,     0,      {crop} High Humidity
+Strawberry, HUMIDITY,    LOW,  70,    Humidifier,        25,    0,      {crop} Low Humidity
+Lettuce,    TEMPERATURE, HIGH, 21,    Cooling Fan,       0,     0,      {crop} High Temp
+Lettuce,    TEMPERATURE, LOW,  15,    -,                 0,     0,      {crop} Low Temp
+Spinach,    TEMPERATURE, HIGH, 20,    Cooling Fan,       0,     0,      {crop} High Temp
+Spinach,    TEMPERATURE, LOW,  10,    -,                 0,     0,      {crop} Low Temp
+Chili,      TEMPERATURE, HIGH, 32,    Cooling Fan,       0,     0,      {crop} High Temp
+Chili,      TEMPERATURE, LOW,  24,    -,                 0,     0,      {crop} Low Temp
+Cucumber,   TEMPERATURE, HIGH, 27,    Cooling Fan,       0,     0,      {crop} High Temp
+Cucumber,   TEMPERATURE, LOW,  18,    -,                 0,     0,      {crop} Low Temp
+*,          LIGHT,       LOW,  500,   Grow Light,        0,     0,      Low Light Level
+*,          NUTRIENT,    LOW,  40,    Nutrient Injector, 0,     0,      Low Nutrient Level
