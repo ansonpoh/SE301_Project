@@ -16,11 +16,9 @@ public class ChamberState {
     private final Map<SensorType, Double> values = new EnumMap<>(SensorType.class);
 
     public ChamberState() {
-        values.put(SensorType.TEMPERATURE, 24.0);
-        values.put(SensorType.HUMIDITY, 70.0);
-        values.put(SensorType.SOIL, 60.0);
-        values.put(SensorType.LIGHT, 600.0);
-        values.put(SensorType.NUTRIENT, 70.0);
+        for (SensorType type : SensorType.values()) {
+            values.put(type, type.initialValue());
+        }
     }
 
     public synchronized double get(SensorType type) {

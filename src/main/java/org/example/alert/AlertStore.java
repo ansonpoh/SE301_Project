@@ -6,7 +6,7 @@ import java.util.List;
 /**
  * Active and archived alerts plus the "generated" count.
  *
- * Four chamber threads add alerts at the same time, so every method is
+ * Every chamber thread adds alerts at the same time, so every method is
  * synchronized on this store. One lock guards all three fields, so adding
  * and archiving can never see each other half-done (legacy issues C2, C7).
  */

@@ -104,9 +104,9 @@ Legacy: 92 / 300 runs with no defect
 Spec section 4 says to preserve behaviour, so these legacy behaviours are kept unchanged. Each is now visible in one data row and can be changed without touching code:
 - humidity rules exist only for Tomato and Strawberry, and the soil rule only for Tomato;
 - light (< 500 lux) and nutrient (< 40%) limits are shared by all crops;
-- low temperature triggers no device;
+- low temperature triggers no device for the legacy crops;
 - Spinach and Cucumber have profiles but no chamber;
-- the device set is the legacy one: no Heating Unit, Ventilation or Shade Controller, plus a Humidifier and Dehumidifier the spec doesn't list;
+- the legacy crops use only the legacy devices. We added the Heating Unit (§5), used only by the new Bell Pepper and Eggplant rows; Ventilation and Shade Controller are still absent, and the Humidifier and Dehumidifier the spec doesn't list are kept;
 - the extra report types from spec 3.5 were never implemented. (Severity levels and the sensor-failure alert from spec 3.4 were missing too; we added them without changing the legacy output, see §5.)
 
 ---
@@ -165,7 +165,7 @@ Spec section 4 says to preserve behaviour, so these legacy behaviours are kept u
 | C10 | The consumer catches a failure per request and keeps running; executors shut down with a 30 s timeout | `ControlService`, `FarmSimulation` |
 | C11 | `Future.get()` surfaces a chamber's exception: it prints `ERROR: chamber CH2 failed: …` and the program exits with code 1 | `FarmSimulation` |
 
-**No deadlock by construction.** No method holds two locks at once. Each lock guards a few field updates and is never held while calling another object. In particular, `SensorProcessor` holds no lock while it publishes an alert or blocks on `queue.put`. With at most one lock held at any time, there can be no cycle of threads waiting on each other.
+**No deadlock by construction.** No method holds two locks at once. Each lock guards a few field updates and is never held while calling another object. In particular, `SensorProcessor` holds no lock while it publishes an alert or waits for room in the control queue (a timed `offer` that also checks the control thread is still alive). With at most one lock held at any time, there can be no cycle of threads waiting on each other.
 
 ---
 
@@ -209,7 +209,7 @@ flowchart LR
 | `model` | `SensorType` (enum), `ChamberState`, `ChamberSummary` |
 | `crop` | `ThresholdRule`, `CropProfile`, `CropRegistry` |
 | `sensor` | `SensorSource`, `RandomSensorSource`, `SensorProcessor`, `SensorRanges`, `ChamberMonitor` |
-| `device` | `Device` + 6 devices, `DeviceRegistry`, `ControlRequest`, `ControlService` |
+| `device` | `Device` + 7 devices, `DeviceRegistry`, `ControlRequest`, `ControlService` |
 | `alert` | `Alert`, `Severity`, `AlertListener`, `AlertPublisher`, `AlertStore`, `ConsoleAlertPrinter` |
 | `report` | `ChamberSummaryTracker`, `ResourceMeter`, `SensorLog`, `DailyReport`, `SeverityLog`, `Timestamps` |
 
@@ -263,9 +263,9 @@ sequenceDiagram
 +CH6, Bok Choy
 ```
 
-Both new crops automatically get the shared light and nutrient rules. With the 7 demo chambers, the program still passed 300 / 300 concurrent runs. **Removing a crop** means deleting its rows; if a chamber still uses it, that chamber keeps only the shared rules (as in the legacy code) and a start-up warning names the line. Bell Pepper and Eggplant were added the same way, with rules but no chamber.
+Both new crops automatically get the shared light and nutrient rules. With the 7 demo chambers, the program still passed 300 / 300 concurrent runs. **Removing a crop** means deleting its rows; if a chamber still uses it, that chamber keeps only the shared rules (as in the legacy code) and a start-up warning names the line. Bell Pepper (demo chamber CH7) and Eggplant (rules only, no chamber) were added the same way, and their low-temperature rows use the new Heating Unit.
 
-**Changing crops without rebuilding.** `java -jar run.jar <folder>` uses `<folder>/crops.csv`, `chambers.csv` and `sensors.csv` in place of the built-in files when they exist, and prints which file it used. A chamber whose crop has no rows in `crops.csv` still runs with only the shared rules, as in the legacy code, but now prints a start-up warning, so a typo is visible. `demo/chambers.csv` adds `CH5, Kale`, `CH6, Bok Choy` and `CH7, Bell Pepper` for the presentation. Only a folder named on the command line is read, so a stray CSV can never change a normal run. Files saved by Notepad or PowerShell (byte-order mark, UTF-16, or appended with `>>`) are read correctly; any other non-UTF-8 text stops the program with the file name instead of being silently altered.
+**Changing crops without rebuilding.** `java -jar run.jar <folder>` uses `<folder>/crops.csv`, `chambers.csv` and `sensors.csv` in place of the built-in files when they exist, and prints which file it used. A chamber whose crop has no rows in `crops.csv` still runs with only the shared rules, as in the legacy code, but now prints a start-up warning, so a typo is visible. A row with an empty column, a limit that is not a finite number, a negative cost, or a second rule with the same crop, sensor, direction and limit stops the program with the file and line. `demo/chambers.csv` adds `CH5, Kale`, `CH6, Bok Choy` and `CH7, Bell Pepper` for the presentation. Only a folder named on the command line is read, so a stray CSV can never change a normal run. Files saved by Notepad or PowerShell (byte-order mark, UTF-16, or appended with `>>`) are read correctly; any other non-UTF-8 text stops the program with the file name instead of being silently altered.
 
 **Alerting extension (spec 3.4).** Each rule has a severity column (temperature CRITICAL; humidity, soil and nutrient WARNING; light INFO). A new `SeverityLog` listener writes every alert with its level, plus a count per level, to `archive/alerts_by_severity.txt`. A sensor that reports a reading outside its valid range in `sensors.csv` (e.g. NaN, humidity outside 0–100 %) or does not respond at all raises a CRITICAL *Sensor Failure* alert; the value is not stored, no device is triggered, and the chamber carries on with its other sensors. At the end of the run one extra console line gives the count per level, e.g. `Alerts by severity: INFO=21, WARNING=64, CRITICAL=93`. This took one new listener, one data file and one method in `SensorProcessor`. Every legacy console line and the daily report are unchanged, so the legacy comparison still passes (it ignores the one extension line).
 
@@ -273,14 +273,14 @@ Both new crops automatically get the shared light and nutrient rules. With the 7
 |---|---|---|
 | Add or remove a crop | edit `processSensor` in up to 3 places | add or delete rows in `crops.csv` |
 | Change a threshold or cost | find the right `if` among 19 copies | edit one number in one row |
-| Add a device (e.g. Heating Unit) | edit `activateControl` | add `HeatingUnit implements Device`, register it in `SVFRMS`, name it in a CSV row |
+| Add a device (e.g. Heating Unit) | edit `activateControl` | add `HeatingUnit implements Device`, register it in `SVFRMS`, name it in a CSV row (done: Bell Pepper, Eggplant) |
 | Add an alert output (file log, SMS) | edit `handleEvent` | add an `AlertListener` and subscribe it (done for severity: `SeverityLog`) |
 | Read real sensors | rewrite `ChamberThread` | add a `SensorSource` implementation |
 | Change the report format | edit two places | edit `DailyReport` only |
 | Add a chamber | edit `main` | add a row to `chambers.csv`, or run with a config folder |
 
 **Maintainability.**
-- Each class has one job and is under about 100 lines.
+- Each class has one job. Most are under 100 lines; the largest (`FarmConfigLoader`, `FarmSimulation`, `ControlService`) are long because of input checks and shutdown handling, not extra responsibilities.
 - Names describe the domain (`AlertStore`, `ResourceMeter`) instead of string codes.
 - Thread-safety lives inside the class that owns the data, so callers can't forget a lock.
 - The single-lock rule (§3.3) is documented in `SensorProcessor`, so future changes keep the program deadlock-free.

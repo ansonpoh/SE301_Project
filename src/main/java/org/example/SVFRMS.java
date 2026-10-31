@@ -21,6 +21,7 @@ import org.example.device.CoolingFan;
 import org.example.device.Dehumidifier;
 import org.example.device.DeviceRegistry;
 import org.example.device.GrowLight;
+import org.example.device.HeatingUnit;
 import org.example.device.Humidifier;
 import org.example.device.NutrientInjector;
 import org.example.device.WaterPump;
@@ -118,7 +119,8 @@ public final class SVFRMS {
                 .register(new NutrientInjector())
                 .register(new Humidifier())
                 .register(new Dehumidifier())
-                .register(new GrowLight());
+                .register(new GrowLight())
+                .register(new HeatingUnit());
 
         FarmConfigLoader config = new FarmConfigLoader(configDir, err);
         CropRegistry crops = config.loadCrops(FarmConfigLoader.CROPS_FILE, devices);

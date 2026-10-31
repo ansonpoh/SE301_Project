@@ -42,14 +42,18 @@ def read_config_text(path):
     ">>") is read the same way here, and anything else fails the same way."""
     with open(path, "rb") as f:
         data = f.read()
-    if data[:2] == b"\xff\xfe":
-        text = data.decode("utf-16-le")
-    elif data[:2] == b"\xfe\xff":
-        text = data.decode("utf-16-be")
-    else:
-        # FF FE / FE FF never occur in UTF-8, so each such pair is an appended UTF-16 BOM.
-        text = re.sub(rb"\xff\xfe|\xfe\xff", b"", data).decode("utf-8")
-    return text.replace("\x00", "").replace("\ufeff", "")
+    # Split at each UTF-16 BOM (never valid UTF-8) and decode every part in its own encoding.
+    boms = {b"\xff\xfe": "utf-16-le", b"\xfe\xff": "utf-16-be"}
+    parts, encoding, start, i = [], "utf-8", 0, 0
+    while i + 1 < len(data):
+        if data[i:i + 2] in boms:
+            parts.append(data[start:i].decode(encoding))
+            encoding, start = boms[data[i:i + 2]], i + 2
+            i = start
+        else:
+            i += 1 if encoding == "utf-8" else 2
+    parts.append(data[start:].decode(encoding))
+    return "".join(parts).replace("\ufeff", "")
 
 
 def csv_rows(path):

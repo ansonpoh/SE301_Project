@@ -32,6 +32,7 @@ Cucumber,     TEMPERATURE,  LOW,   18,   -,                  0,   0,   CRITICAL,
 #
 # Crops added for spec 4.5 (rows only, no Java changes). The default chambers.csv
 # keeps the legacy four; "java -jar run.jar demo" runs Kale, Bok Choy and Bell Pepper.
+# Bell Pepper and Eggplant use the Heating Unit (spec 3.3), which no legacy crop uses.
 Kale,         TEMPERATURE,  HIGH,  24,   Cooling Fan,        0,   8,   CRITICAL,  {crop} High Temp
 Kale,         TEMPERATURE,  LOW,   12,   -,                  0,   12,  CRITICAL,  {crop} Low Temp
 Kale,         HUMIDITY,     LOW,   55,   Humidifier,         15,  0,   WARNING,   {crop} Low Humidity
@@ -41,9 +42,9 @@ Bok Choy,     TEMPERATURE,  LOW,   13,   -,                  0,   12,  CRITICAL,
 Bok Choy,     HUMIDITY,     HIGH,  85,   Dehumidifier,       0,   0,   WARNING,   {crop} High Humidity
 Bok Choy,     SOIL,         LOW,   50,   Water Pump,         40,  0,   WARNING,   {crop} Low Soil Moisture
 Bell Pepper,  TEMPERATURE,  HIGH,  29,   Cooling Fan,        0,   0,   CRITICAL,  {crop} High Temp
-Bell Pepper,  TEMPERATURE,  LOW,   21,   -,                  0,   0,   CRITICAL,  {crop} Low Temp
+Bell Pepper,  TEMPERATURE,  LOW,   21,   Heating Unit,       0,   12,  CRITICAL,  {crop} Low Temp
 Eggplant,     TEMPERATURE,  HIGH,  30,   Cooling Fan,        0,   0,   CRITICAL,  {crop} High Temp
-Eggplant,     TEMPERATURE,  LOW,   22,   -,                  0,   0,   CRITICAL,  {crop} Low Temp
+Eggplant,     TEMPERATURE,  LOW,   22,   Heating Unit,       0,   12,  CRITICAL,  {crop} Low Temp
 #
 # Rules every crop shares (the legacy global light and nutrient thresholds).
 *,            LIGHT,        LOW,   500,  Grow Light,         0,   0,   INFO,      Low Light Level

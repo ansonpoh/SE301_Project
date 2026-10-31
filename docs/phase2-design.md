@@ -134,7 +134,7 @@ public class CoolingFan implements Device {
 
 | Pattern | Where | Problem it solves (legacy smell) | Why this pattern and not something bigger |
 |---|---|---|---|
-| **Strategy** | `Device` + 6 implementations | `activateControl` if/else over device names (S6). Adding Heating Unit meant editing that method | Each device is a different algorithm behind one interface. Adding a device = one class + one registry line. ControlService never changes |
+| **Strategy** | `Device` + 6 implementations (7 now: `HeatingUnit` was added later as one class plus one registration) | `activateControl` if/else over device names (S6). Adding Heating Unit meant editing that method | Each device is a different algorithm behind one interface. Adding a device = one class + one registry line. ControlService never changes |
 | **Registry** | `CropRegistry`, `DeviceRegistry` | Crop names and device names hard-coded in control flow (S4, S5, S7) | A lookup by name is all that is needed. No factory hierarchy |
 | **Observer** | `AlertPublisher` → `ChamberSummaryTracker`, `AlertStore`, `ConsoleAlertPrinter` | `handleEvent` did summary, storage, counting and printing behind one string switch (S3: SRP, ISP) | The rule engine raises one `Alert`; each listener does one job. New outputs (a file log, severity, SMS) = a new listener |
 | **Command** + **Producer–Consumer** | `ControlRequest` on an `ArrayBlockingQueue` in `ControlService` | `"CH1\|Cooling Fan"` strings parsed with `split` (S7); hand-written `wait/notifyAll` buffer that swallowed interrupts (S8, C9) | The request carries the device and the chamber's state as objects and has `execute()`. The JDK's `BlockingQueue` provides the bounded buffer (capacity 5, as in the legacy code) |

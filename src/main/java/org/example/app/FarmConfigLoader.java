@@ -1,6 +1,5 @@
 package org.example.app;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintStream;
@@ -13,6 +12,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -74,6 +74,7 @@ public class FarmConfigLoader {
     public CropRegistry loadCrops(String resource, DeviceRegistry devices) {
         Map<String, List<ThresholdRule>> rulesByCrop = new LinkedHashMap<>();
         List<ThresholdRule> sharedRules = new ArrayList<>();
+        Map<List<Object>, Integer> firstLineOfRule = new HashMap<>();
 
         for (Row row : readRows(resource, 9)) {
             String[] f = row.fields();
@@ -88,6 +89,14 @@ public class FarmConfigLoader {
                         device, Integer.parseInt(f[5]), Integer.parseInt(f[6]), Severity.valueOf(f[7]), f[8]);
             } catch (IllegalArgumentException e) {
                 throw error(resource, row, e.getMessage());
+            }
+            // Two rows that fire on the same readings (e.g. a copy-pasted row with
+            // new text) would double that alert, its costs and its device request.
+            // Different limits are allowed, e.g. a WARNING and a CRITICAL level.
+            List<Object> trigger = List.of(f[0], rule.sensor(), rule.direction(), rule.limit());
+            Integer firstLine = firstLineOfRule.putIfAbsent(trigger, row.lineNo());
+            if (firstLine != null) {
+                throw error(resource, row, "same crop, sensor, direction and limit as line " + firstLine);
             }
 
             if (f[0].equals(SHARED_RULE)) {
@@ -180,48 +189,53 @@ public class FarmConfigLoader {
     /**
      * Config files are UTF-8, but Windows tools often save them as UTF-16 or
      * with a byte-order mark, and PowerShell 5.1's "&gt;&gt;" appends UTF-16 text
-     * (with its BOM) to a UTF-8 file. Decode by BOM, dropping the BOM and NUL
-     * characters those encodings leave behind. Any other byte that is not valid
-     * text (e.g. an ANSI-encoded accent) is an error, never silently dropped.
+     * (with its BOM) to a UTF-8 file. So the bytes are split at each UTF-16 BOM
+     * (FF FE or FE FF, which never occur in UTF-8) and every part is decoded in
+     * its own encoding: UTF-8 up to the first BOM, then whatever each BOM names.
+     * A byte that is not valid text in its part (e.g. an ANSI accent, a lone
+     * 0xFF) is an error, never silently dropped.
      */
     private static String decode(String resource, byte[] bytes) {
+        StringBuilder text = new StringBuilder();
         Charset charset = StandardCharsets.UTF_8;
-        if (bytes.length >= 2 && (bytes[0] & 0xFF) == 0xFF && (bytes[1] & 0xFF) == 0xFE) {
-            charset = StandardCharsets.UTF_16LE;
-        } else if (bytes.length >= 2 && (bytes[0] & 0xFF) == 0xFE && (bytes[1] & 0xFF) == 0xFF) {
-            charset = StandardCharsets.UTF_16BE;
-        } else {
-            bytes = withoutUtf16Boms(bytes);
+        int start = 0;
+        int i = 0;
+        while (i + 1 < bytes.length) {
+            Charset next = utf16Bom(bytes[i], bytes[i + 1]);
+            if (next != null) {
+                text.append(decodePart(resource, bytes, start, i, charset));
+                charset = next;
+                start = i + 2;
+                i = start;
+            } else {
+                // UTF-16 text comes in 2-byte units, so a BOM can only start on one.
+                i += charset.equals(StandardCharsets.UTF_8) ? 1 : 2;
+            }
         }
+        text.append(decodePart(resource, bytes, start, bytes.length, charset));
+        return text.toString().replace("\uFEFF", "");   // a UTF-8 BOM decodes to U+FEFF
+    }
+
+    private static String decodePart(String resource, byte[] bytes, int from, int to, Charset charset) {
         try {
-            return charset.newDecoder().decode(ByteBuffer.wrap(bytes)).toString().replaceAll("[\\x{0}\\x{FEFF}]", "");
+            return charset.newDecoder().decode(ByteBuffer.wrap(bytes, from, to - from)).toString();
         } catch (CharacterCodingException e) {
             throw new IllegalArgumentException(resource + ": not valid " + charset
                     + " text (save it as UTF-8)", e);
         }
     }
 
-    /**
-     * Drops each UTF-16 BOM (bytes FF FE or FE FF) appended to a UTF-8 file.
-     * Those bytes never occur in UTF-8, so only a pair is a BOM; a lone 0xFF or
-     * 0xFE (e.g. an ANSI "ÿ") is kept, so decoding rejects it.
-     */
-    private static byte[] withoutUtf16Boms(byte[] bytes) {
-        ByteArrayOutputStream kept = new ByteArrayOutputStream(bytes.length);
-        for (int i = 0; i < bytes.length; i++) {
-            if (i + 1 < bytes.length && isUtf16Bom(bytes[i], bytes[i + 1])) {
-                i++;
-                continue;
-            }
-            kept.write(bytes[i]);
-        }
-        return kept.toByteArray();
-    }
-
-    private static boolean isUtf16Bom(byte first, byte second) {
+    /** The charset a UTF-16 BOM names, or null if these two bytes are not one. */
+    private static Charset utf16Bom(byte first, byte second) {
         int a = first & 0xFF;
         int b = second & 0xFF;
-        return (a == 0xFF && b == 0xFE) || (a == 0xFE && b == 0xFF);
+        if (a == 0xFF && b == 0xFE) {
+            return StandardCharsets.UTF_16LE;
+        }
+        if (a == 0xFE && b == 0xFF) {
+            return StandardCharsets.UTF_16BE;
+        }
+        return null;
     }
 
     private List<Row> readRows(String resource, int columns) {
@@ -246,6 +260,10 @@ public class FarmConfigLoader {
             }
             for (int i = 0; i < fields.length; i++) {
                 fields[i] = fields[i].strip();
+                if (fields[i].isEmpty()) {
+                    throw new IllegalArgumentException(resource + " line " + lineNo
+                            + ": column " + (i + 1) + " is empty");
+                }
             }
             rows.add(new Row(lineNo, fields));
         }

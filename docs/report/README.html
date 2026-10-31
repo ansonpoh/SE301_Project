@@ -97,8 +97,8 @@ edit away from the classic deadlock: if either method took <code>reportLock</cod
 wait for the other. The real liveness risk is C10. Our design removes lock nesting entirely (section 5).</p>
 <p><b>Spec gaps.</b> The code has no severity levels and no sensor-failure alert (spec 3.4); we add both as an extension that
 leaves the legacy output untouched (section 6). Other gaps are documented, not changed, because spec 4 requires preserved
-behaviour: Heating Unit, Ventilation and Shade Controller do not exist (Humidifier and Dehumidifier do), only Tomato has
-every rule, and there is one combined report.</p>
+behaviour: Heating Unit, Ventilation and Shade Controller do not exist (Humidifier and Dehumidifier do; we add a Heating Unit for
+the new crops only, section 6), only Tomato has every rule, and there is one combined report.</p>
 
 <h1>3. Proposed Design</h1>
 <p><b>Design rule:</b> preserve behaviour exactly, and fix every smell and concurrency defect above. Every class exists to
@@ -116,7 +116,8 @@ printer each do one job.</li>
 <li><b>Objects, not strings, on the queue.</b> A <code>ControlRequest</code> holds the chamber, its state and the device.</li>
 <li><b>Composition root.</b> Only <code>SVFRMS.createSimulation</code> creates and connects objects; everything else gets its
 dependencies through its constructor, so the tests and the baseline harness can inject a seeded or fixed sensor source.</li>
-<li><b>Fail fast on bad configuration.</b> Every CSV error (unknown device or sensor, wrong column count, duplicate chamber) stops
+<li><b>Fail fast on bad configuration.</b> Every CSV error (unknown device or sensor, wrong column count, empty column, non-finite limit, negative
+cost, duplicate rule or chamber) stops
 the program before any thread starts, naming the file and line; a chamber whose crop has no rows gets a warning.</li>
 </ul>
 <h2>3.1 SOLID mapping</h2>
@@ -299,7 +300,7 @@ of 1, a failing-device test and a crashed-consumer test (C10), an interrupted-pr
 <tr><td>Add a crop (Kale)</td><td>Edit <code>processSensor</code> in up to 3 places</td><td>Add rows to <code>crops.csv</code>, and a row such as <code>CH5, Kale</code> to a <code>chambers.csv</code></td></tr>
 <tr><td>Remove a crop</td><td>Delete branches and hope nothing else uses them</td><td>Delete its rows</td></tr>
 <tr><td>Change a threshold or cost</td><td>Find the right <code>if</code> among 19 copies</td><td>Edit one number in one row</td></tr>
-<tr><td>Add a device (Heating Unit)</td><td>Edit <code>activateControl</code></td><td>New <code>HeatingUnit implements Device</code>, register it in <code>SVFRMS</code>, use its name in a CSV row</td></tr>
+<tr><td>Add a device (Heating Unit)</td><td>Edit <code>activateControl</code></td><td>New <code>HeatingUnit implements Device</code>, register it in <code>SVFRMS</code>, use its name in a CSV row (done for Bell Pepper and Eggplant)</td></tr>
 <tr><td>Add an alert output (file, SMS)</td><td>Edit <code>handleEvent</code></td><td>New <code>AlertListener</code>, subscribe it in <code>SVFRMS</code> (done for severity, below)</td></tr>
 <tr><td>Use real sensors</td><td>Rewrite <code>ChamberThread</code></td><td>Implement <code>SensorSource</code>, pass it to <code>createSimulation</code></td></tr>
 <tr><td>Change the report format</td><td>Edit two places</td><td>Edit <code>DailyReport</code></td></tr>

@@ -1,8 +1,10 @@
 package org.example.crop;
 
-import java.util.ArrayList;
+import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 import org.example.model.SensorType;
 
@@ -16,30 +18,29 @@ import org.example.model.SensorType;
  * Read-only after loading, so it is safe to share between threads.
  */
 public class CropRegistry {
-    private final Map<String, CropProfile> profiles;
-    private final List<ThresholdRule> sharedRules;
+    /** Rules per crop and sensor, worked out once here instead of on every reading. */
+    private final Map<String, Map<SensorType, List<ThresholdRule>>> rulesByCrop = new HashMap<>();
+    private final Map<SensorType, List<ThresholdRule>> sharedOnly;
 
     public CropRegistry(Map<String, CropProfile> profiles, List<ThresholdRule> sharedRules) {
-        this.profiles = Map.copyOf(profiles);
-        this.sharedRules = List.copyOf(sharedRules);
+        profiles.forEach((crop, profile) -> rulesByCrop.put(crop, bySensor(profile.rules(), sharedRules)));
+        this.sharedOnly = bySensor(List.of(), sharedRules);
     }
 
     /** Crop-specific rules for this sensor first, then the shared ones. */
     public List<ThresholdRule> rulesFor(String crop, SensorType sensor) {
-        List<ThresholdRule> rules = new ArrayList<>();
-        CropProfile profile = profiles.get(crop);
-        if (profile != null) {
-            rules.addAll(profile.rulesFor(sensor));
-        }
-        for (ThresholdRule rule : sharedRules) {
-            if (rule.sensor() == sensor) {
-                rules.add(rule);
-            }
-        }
-        return rules;
+        return rulesByCrop.getOrDefault(crop, sharedOnly).get(sensor);
     }
 
     public boolean contains(String crop) {
-        return profiles.containsKey(crop);
+        return rulesByCrop.containsKey(crop);
+    }
+
+    private static Map<SensorType, List<ThresholdRule>> bySensor(List<ThresholdRule> own, List<ThresholdRule> shared) {
+        Map<SensorType, List<ThresholdRule>> rules = new EnumMap<>(SensorType.class);
+        for (SensorType sensor : SensorType.values()) {
+            rules.put(sensor, Stream.concat(own.stream(), shared.stream()).filter(r -> r.sensor() == sensor).toList());
+        }
+        return rules;
     }
 }

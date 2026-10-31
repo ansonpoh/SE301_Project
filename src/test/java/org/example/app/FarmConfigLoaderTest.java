@@ -21,6 +21,7 @@ import org.example.device.CoolingFan;
 import org.example.device.Dehumidifier;
 import org.example.device.DeviceRegistry;
 import org.example.device.GrowLight;
+import org.example.device.HeatingUnit;
 import org.example.device.Humidifier;
 import org.example.device.NutrientInjector;
 import org.example.device.WaterPump;
@@ -39,7 +40,8 @@ class FarmConfigLoaderTest {
     private final FarmConfigLoader loader = new FarmConfigLoader();
     private final DeviceRegistry devices = new DeviceRegistry()
             .register(new CoolingFan()).register(new WaterPump()).register(new NutrientInjector())
-            .register(new Humidifier()).register(new Dehumidifier()).register(new GrowLight());
+            .register(new Humidifier()).register(new Dehumidifier()).register(new GrowLight())
+            .register(new HeatingUnit());
 
     @TempDir
     Path dir;
@@ -84,7 +86,7 @@ class FarmConfigLoaderTest {
     void rejectsUnknownDevice() {
         IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
                 () -> loader.loadCrops("test-unknown-device.csv", devices));
-        assertTrue(e.getMessage().contains("line 1") && e.getMessage().contains("Heating Unit"), e.getMessage());
+        assertTrue(e.getMessage().contains("line 1") && e.getMessage().contains("Shade Controller"), e.getMessage());
     }
 
     @Test
@@ -216,6 +218,68 @@ class FarmConfigLoaderTest {
         IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
                 () -> new FarmConfigLoader(dir, null).loadChambers("chambers.csv", builtInCrops()));
         assertTrue(e.getMessage().contains("UTF-8"), e.getMessage());
+    }
+
+    /** A limit that can never be breached, or a negative cost, would fail silently at run time. */
+    @Test
+    void rejectsNanLimitAndNegativeCost() throws IOException {
+        Files.writeString(dir.resolve("crops.csv"),
+                "Kale, TEMPERATURE, HIGH, NaN, Cooling Fan, 0, 0, CRITICAL, {crop} High Temp\n");
+        IllegalArgumentException nan = assertThrows(IllegalArgumentException.class,
+                () -> new FarmConfigLoader(dir, null).loadCrops("crops.csv", devices));
+        assertTrue(nan.getMessage().contains("line 1") && nan.getMessage().contains("limit"), nan.getMessage());
+
+        Files.writeString(dir.resolve("crops.csv"),
+                "Kale, SOIL, LOW, 40, Water Pump, -30, 0, WARNING, {crop} Low Soil Moisture\n");
+        IllegalArgumentException negative = assertThrows(IllegalArgumentException.class,
+                () -> new FarmConfigLoader(dir, null).loadCrops("crops.csv", devices));
+        assertTrue(negative.getMessage().contains("line 1") && negative.getMessage().contains("negative"),
+                negative.getMessage());
+    }
+
+    /** A copied row with only new text would still double that crop's alerts, costs and device requests. */
+    @Test
+    void rejectsSecondRuleWithTheSameTrigger() throws IOException {
+        Files.writeString(dir.resolve("crops.csv"),
+                "Kale, TEMPERATURE, HIGH, 24, Cooling Fan, 0, 8, CRITICAL, {crop} High Temp\n"
+                        + "# comment\n"
+                        + "Kale, TEMPERATURE, HIGH, 24, Cooling Fan, 0, 8, CRITICAL, {crop} Too Hot\n");
+
+        IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
+                () -> new FarmConfigLoader(dir, null).loadCrops("crops.csv", devices));
+        assertTrue(e.getMessage().contains("line 3") && e.getMessage().contains("line 1"), e.getMessage());
+    }
+
+    /** Different limits on the same sensor are separate levels, not duplicates. */
+    @Test
+    void allowsRulesAtDifferentLimits() throws IOException {
+        Files.writeString(dir.resolve("crops.csv"),
+                "Kale, TEMPERATURE, HIGH, 24, Cooling Fan, 0, 8, WARNING, {crop} Warm\n"
+                        + "Kale, TEMPERATURE, HIGH, 30, Cooling Fan, 0, 8, CRITICAL, {crop} Hot\n");
+
+        assertEquals(2, new FarmConfigLoader(dir, null).loadCrops("crops.csv", devices)
+                .rulesFor("Kale", SensorType.TEMPERATURE).size());
+    }
+
+    @Test
+    void rejectsEmptyColumn() throws IOException {
+        Files.writeString(dir.resolve("chambers.csv"), "CH1, \n");
+
+        IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
+                () -> new FarmConfigLoader(dir, null).loadChambers("chambers.csv", builtInCrops()));
+        assertTrue(e.getMessage().contains("line 1") && e.getMessage().contains("column 2"), e.getMessage());
+    }
+
+    /** Appended UTF-16 text is decoded as UTF-16, so a non-ASCII crop name survives intact. */
+    @Test
+    void decodesAppendedUtf16TextInItsOwnEncoding() throws IOException {
+        Path file = dir.resolve("chambers.csv");
+        Files.writeString(file, "CH1, Tomato\n");
+        Files.write(file, concat(new byte[] {(byte) 0xFF, (byte) 0xFE},
+                "CH5, Pak Choï\r\n".getBytes(StandardCharsets.UTF_16LE)), StandardOpenOption.APPEND);
+
+        assertEquals(List.of(new ChamberAssignment("CH1", "Tomato"), new ChamberAssignment("CH5", "Pak Choï")),
+                new FarmConfigLoader(dir, null).loadChambers("chambers.csv", builtInCrops()));
     }
 
     /** A trailing comma is an extra (empty) column, not something to ignore. */

@@ -17,6 +17,20 @@ public record ThresholdRule(SensorType sensor, Direction direction, double limit
 
     public enum Direction { HIGH, LOW }
 
+    /**
+     * @throws IllegalArgumentException for a limit that could never be breached
+     *         (NaN, infinite) or a negative cost, which would lower the usage totals
+     */
+    public ThresholdRule {
+        if (!Double.isFinite(limit)) {
+            throw new IllegalArgumentException("limit must be a number, not " + limit);
+        }
+        if (waterCost < 0 || energyCost < 0) {
+            throw new IllegalArgumentException("costs must not be negative (water " + waterCost
+                    + ", energy " + energyCost + ")");
+        }
+    }
+
     /** Strict comparison, exactly like the legacy code (value > 28, value < 22). */
     public boolean isBreachedBy(double value) {
         return direction == Direction.HIGH ? value > limit : value < limit;

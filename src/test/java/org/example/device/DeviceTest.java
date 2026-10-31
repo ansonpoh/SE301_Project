@@ -51,6 +51,12 @@ class DeviceTest {
     }
 
     @Test
+    void heatingUnitRaisesBy5ButNotAbove30() {
+        assertEquals(20, applyTo(new HeatingUnit(), SensorType.TEMPERATURE, 15));
+        assertEquals(30, applyTo(new HeatingUnit(), SensorType.TEMPERATURE, 28));
+    }
+
+    @Test
     void logTextMatchesTheLegacyFormat() {
         ChamberState state = new ChamberState();
         state.set(SensorType.TEMPERATURE, 31);
@@ -62,6 +68,6 @@ class DeviceTest {
         DeviceRegistry registry = new DeviceRegistry().register(new CoolingFan());
         assertTrue(registry.contains("Cooling Fan"));
         assertEquals("Cooling Fan", registry.get("Cooling Fan").name());
-        assertThrows(IllegalArgumentException.class, () -> registry.get("Heating Unit"));
+        assertThrows(IllegalArgumentException.class, () -> registry.get("Shade Controller"));
     }
 }
