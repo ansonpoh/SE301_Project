@@ -76,7 +76,7 @@ public class NutrientUsageReport implements ActionListener, DayEndOutput {
 
     /** @throws IOException if the file cannot be written */
     @Override
-    public void save(Path file) throws IOException {
+    public void save(Path file, DayStatus day) throws IOException {
         List<String> lines = new ArrayList<>();
         lines.add("===== NUTRIENT CONSUMPTION REPORT =====");
         lines.add("Timestamp: " + Timestamps.now(clock));

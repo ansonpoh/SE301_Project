@@ -14,8 +14,12 @@ public interface DayEndOutput {
     /** e.g. "alerts_by_severity.txt" */
     String fileName();
 
-    /** @throws IOException if the file cannot be written */
-    void save(Path file) throws IOException;
+    /**
+     * @param day whether today's run completed (see DayStatus); only an output
+     *            that keeps figures beyond today needs to look at it
+     * @throws IOException if the file cannot be written
+     */
+    void save(Path file, DayStatus day) throws IOException;
 
     /** e.g. "Alerts by severity: INFO=3, WARNING=10, CRITICAL=40" */
     String summaryLine();

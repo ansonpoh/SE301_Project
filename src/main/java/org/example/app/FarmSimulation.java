@@ -16,6 +16,7 @@ import org.example.alert.AlertPublisher;
 import org.example.device.ControlService;
 import org.example.report.DailyReport;
 import org.example.report.DayEndOutput;
+import org.example.report.DayStatus;
 import org.example.sensor.ChamberMonitor;
 import org.example.sensor.SensorProcessor;
 import org.example.sensor.SensorSource;
@@ -128,7 +129,7 @@ public class FarmSimulation {
         }
         shutdownOk &= controlFinished(controlTask);
         List<String> failedChambers = reportFailedChambers(monitors, running);
-        reportUnfinishedChambers(monitors, failedChambers);
+        boolean allChambersFinished = reportUnfinishedChambers(monitors, failedChambers);
 
         int failedDeliveries = alerts.failedDeliveries();
         if (failedDeliveries > 0) {
@@ -139,6 +140,12 @@ public class FarmSimulation {
             err.println("ERROR: " + failedActions + " device actions failed; the report totals may be short.");
         }
 
+        // Today's figures are short if anything above went wrong; an output that
+        // keeps days (the weekly report) then leaves today out.
+        boolean completeDay = failedChambers.isEmpty() && allChambersFinished && shutdownOk
+                && failedDeliveries == 0 && failedActions == 0 && !interrupted;
+        DayStatus day = completeDay ? DayStatus.COMPLETE : DayStatus.INCOMPLETE;
+
         report.archiveAlerts();
         report.print();
         out.println("System finished sensor processing.");
@@ -146,7 +153,7 @@ public class FarmSimulation {
         for (DayEndOutput output : dayEndOutputs) {
             Path file = reportFile.resolveSibling(output.fileName());
             try {
-                output.save(file);
+                output.save(file, day);
                 out.println(output.summaryLine() + " (saved to " + file.toAbsolutePath() + ")");
             } catch (IOException e) {
                 err.println("Could not save " + file + ": " + e);
@@ -157,8 +164,7 @@ public class FarmSimulation {
         if (interrupted) {
             Thread.currentThread().interrupt();
         }
-        return failedChambers.isEmpty() && shutdownOk && failedDeliveries == 0 && failedActions == 0 && allSaved
-                && !interrupted;
+        return completeDay && allSaved;
     }
 
     /**
@@ -202,14 +208,21 @@ public class FarmSimulation {
      * stopped by an interrupt or the shutdown timeout), so the report's totals
      * are never silently a mix of full and partial days. A chamber that failed
      * has already been reported with its error, so it is not named again.
+     *
+     * @return true if every chamber ran all its cycles
      */
-    private void reportUnfinishedChambers(List<ChamberMonitor> monitors, List<String> failedChambers) {
+    private boolean reportUnfinishedChambers(List<ChamberMonitor> monitors, List<String> failedChambers) {
+        boolean allFinished = true;
         for (ChamberMonitor monitor : monitors) {
-            if (monitor.cyclesDone() < ChamberMonitor.CYCLES && !failedChambers.contains(monitor.chamberId())) {
-                err.println("WARNING: chamber " + monitor.chamberId() + " stopped after " + monitor.cyclesDone()
-                        + " of " + ChamberMonitor.CYCLES + " cycles; its totals in the report are partial.");
+            if (monitor.cyclesDone() < ChamberMonitor.CYCLES) {
+                allFinished = false;
+                if (!failedChambers.contains(monitor.chamberId())) {
+                    err.println("WARNING: chamber " + monitor.chamberId() + " stopped after " + monitor.cyclesDone()
+                            + " of " + ChamberMonitor.CYCLES + " cycles; its totals in the report are partial.");
+                }
             }
         }
+        return allFinished;
     }
 
     /**

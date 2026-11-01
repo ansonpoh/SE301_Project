@@ -51,7 +51,7 @@ class WeeklyCropReportTest {
     void sumsChambersPerCrop() throws Exception {
         WeeklyCropReport report = oneDay();
         Path file = dir.resolve(WeeklyCropReport.FILE_NAME);
-        report.save(file);
+        report.save(file, DayStatus.COMPLETE);
 
         List<String> lines = Files.readAllLines(file);
         assertEquals(List.of(
@@ -74,7 +74,7 @@ class WeeklyCropReportTest {
     void sumsTheLastSevenDays() throws Exception {
         Path file = dir.resolve(WeeklyCropReport.FILE_NAME);
         for (int day = 1; day <= 9; day++) {
-            oneDay().save(file);
+            oneDay().save(file, DayStatus.COMPLETE);
         }
 
         List<String> lines = Files.readAllLines(file);
@@ -87,12 +87,64 @@ class WeeklyCropReportTest {
         assertTrue(history.get(1).startsWith("3,"), history.get(1));
     }
 
-    /** A damaged history fails the save instead of silently starting a new week. */
+    /** An incomplete day is reported as missing and left out of the history, so it never counts as a full day. */
+    @Test
+    void incompleteDayIsNotRecorded() throws Exception {
+        Path file = dir.resolve(WeeklyCropReport.FILE_NAME);
+        Path historyFile = dir.resolve(WeeklyCropReport.HISTORY_FILE_NAME);
+        oneDay().save(file, DayStatus.COMPLETE);
+        List<String> before = Files.readAllLines(historyFile);
+
+        WeeklyCropReport partial = oneDay();
+        partial.save(file, DayStatus.INCOMPLETE);
+
+        assertEquals(before, Files.readAllLines(historyFile));
+        List<String> lines = Files.readAllLines(file);
+        assertTrue(lines.contains("Days recorded: 1 of 7 (days 1-1; one simulated day per run,"
+                + " history in weekly_crop_history.csv)"), String.join("\n", lines));
+        assertTrue(lines.contains("Today not recorded: the run did not complete, so its partial figures are left out"));
+        assertTrue(lines.contains("Tomato -> ChamberDays=2, Alerts=2, Actions=1, Water=42 L, Energy=10 kWh"),
+                String.join("\n", lines));
+        assertEquals("Weekly crop report: 2 crops, 1 of 7 days recorded, today not recorded (incomplete run)",
+                partial.summaryLine());
+
+        oneDay().save(file, DayStatus.COMPLETE);   // the next complete run is day 2, not day 3
+        assertTrue(Files.readAllLines(historyFile).getLast().startsWith("2,"));
+    }
+
+    /** An incomplete first day records nothing but still lists today's crop profiles. */
+    @Test
+    void incompleteFirstDayStillListsProfiles() throws Exception {
+        Path file = dir.resolve(WeeklyCropReport.FILE_NAME);
+        oneDay().save(file, DayStatus.INCOMPLETE);
+
+        List<String> lines = Files.readAllLines(file);
+        assertTrue(lines.contains("Days recorded: 0 of 7 (one simulated day per run, history in "
+                + WeeklyCropReport.HISTORY_FILE_NAME + ")"), String.join("\n", lines));
+        assertTrue(lines.stream().anyMatch(l -> l.startsWith("Tomato: Temperature 22-28 C")), String.join("\n", lines));
+        assertTrue(lines.stream().anyMatch(l -> l.startsWith("Lettuce: ")), String.join("\n", lines));
+        assertTrue(lines.contains("Total -> ChamberDays=0, Alerts=0, Actions=0, Water=0 L, Energy=0 kWh"),
+                String.join("\n", lines));
+        assertTrue(Files.notExists(dir.resolve(WeeklyCropReport.HISTORY_FILE_NAME)));
+    }
+
+    /**
+     * A damaged history fails the save instead of silently starting a new week,
+     * and a report that cannot be written leaves the history as it was, so the
+     * failed run is not counted as a day.
+     */
     @Test
     void damagedHistoryFailsTheSave() throws Exception {
-        Files.writeString(dir.resolve(WeeklyCropReport.HISTORY_FILE_NAME), "1,2026-11-01,Tomato,1,x,0,0,0\n");
+        Path historyFile = dir.resolve(WeeklyCropReport.HISTORY_FILE_NAME);
+        Files.writeString(historyFile, "1,2026-11-01,Tomato,1,x,0,0,0\n");
 
-        IOException e = assertThrows(IOException.class, () -> oneDay().save(dir.resolve(WeeklyCropReport.FILE_NAME)));
+        IOException e = assertThrows(IOException.class,
+                () -> oneDay().save(dir.resolve(WeeklyCropReport.FILE_NAME), DayStatus.COMPLETE));
         assertTrue(e.getMessage().contains("line 1") && e.getMessage().contains("delete the file"), e.getMessage());
+
+        // The report path is a folder, so the report cannot be written.
+        Path blocked = Files.createDirectories(dir.resolve("blocked").resolve(WeeklyCropReport.FILE_NAME));
+        assertThrows(IOException.class, () -> oneDay().save(blocked, DayStatus.COMPLETE));
+        assertTrue(Files.notExists(blocked.resolveSibling(WeeklyCropReport.HISTORY_FILE_NAME)));
     }
 }

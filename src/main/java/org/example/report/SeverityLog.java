@@ -68,7 +68,7 @@ public class SeverityLog implements AlertListener, DayEndOutput {
      * @throws IOException if the file cannot be written
      */
     @Override
-    public void save(Path file) throws IOException {
+    public void save(Path file, DayStatus day) throws IOException {
         List<String> lines = snapshot();
         Files.createDirectories(file.toAbsolutePath().getParent());
         Files.write(file, lines, StandardCharsets.UTF_8);

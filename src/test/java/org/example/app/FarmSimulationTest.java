@@ -37,6 +37,8 @@ import org.example.model.ChamberState;
 import org.example.model.SensorType;
 import org.example.report.ChamberSummaryTracker;
 import org.example.report.DailyReport;
+import org.example.report.DayEndOutput;
+import org.example.report.DayStatus;
 import org.example.report.NutrientUsageReport;
 import org.example.report.ResourceMeter;
 import org.example.report.ResourceUsageReport;
@@ -154,6 +156,23 @@ class FarmSimulationTest {
     }
 
     /** CH1 Tomato at 35C, with one rule that queues a Cooling Fan request on every high reading. */
+    /** Records the DayStatus FarmSimulation passes to its outputs. */
+    private static final class StatusRecorder implements DayEndOutput {
+        DayStatus day;
+
+        public String fileName() {
+            return "day_status.txt";
+        }
+
+        public void save(Path file, DayStatus day) {
+            this.day = day;
+        }
+
+        public String summaryLine() {
+            return "Day " + day;
+        }
+    }
+
     private static ChamberMonitor hotTomatoMonitor(ControlSink control) {
         PrintStream silent = new PrintStream(new ByteArrayOutputStream());
         CropRegistry crops = new CropRegistry(Map.of(), List.of(new ThresholdRule(SensorType.TEMPERATURE,
@@ -308,6 +327,13 @@ class FarmSimulationTest {
         String text = errors.toString(StandardCharsets.UTF_8);
         assertTrue(text.contains("ERROR: chamber CH1 failed"), text);
         assertFalse(text.contains("stopped after"), "a failed chamber is reported once, not again as a partial day");
+
+        // The failed day is not recorded in the weekly history, so it never counts as a full day.
+        Path archive = dir.resolve("archive");
+        assertFalse(Files.exists(archive.resolve(WeeklyCropReport.HISTORY_FILE_NAME)));
+        List<String> weekly = Files.readAllLines(archive.resolve(WeeklyCropReport.FILE_NAME));
+        assertTrue(weekly.contains("Days recorded: 0 of 7 (one simulated day per run, history in "
+                + WeeklyCropReport.HISTORY_FILE_NAME + ")"), String.join("\n", weekly));
     }
 
     /**
@@ -385,6 +411,8 @@ class FarmSimulationTest {
         assertFalse(text.contains("failed"), text);
         assertTrue(Files.exists(reportFile));
         assertTrue(Files.exists(reportFile.resolveSibling(SeverityLog.FILE_NAME)));
+        assertFalse(Files.exists(reportFile.resolveSibling(WeeklyCropReport.HISTORY_FILE_NAME)),
+                "an interrupted day is not recorded");
     }
 
     /**
@@ -424,12 +452,13 @@ class FarmSimulationTest {
         ResourceMeter resources = new ResourceMeter();
         ControlService control = new ControlService(10, List.of(summaries), err);
         SensorLog sensorLog = new SensorLog(Clock.systemUTC());
+        StatusRecorder status = new StatusRecorder();
         SensorProcessor processor = new SensorProcessor(crops, alerts, resources, control,
                 sensorLog, new FarmConfigLoader(null, null).loadSensorRanges("sensors.csv"));
         FarmSimulation simulation = new FarmSimulation(List.of(new ChamberAssignment("CH1", "Tomato")), 1, sensors,
                 processor, alerts, resources, control,
                 new DailyReport(store, resources, summaries, silent, Clock.systemUTC()),
-                List.of(new SeverityLog(), sensorLog), silent, err);
+                List.of(new SeverityLog(), sensorLog, status), silent, err);
 
         boolean ok = assertTimeoutPreemptively(Duration.ofSeconds(20),
                 () -> simulation.run(dir.resolve("archive").resolve("daily_report.txt")));
@@ -437,6 +466,7 @@ class FarmSimulationTest {
         assertFalse(ok);
         String text = errors.toString(StandardCharsets.UTF_8);
         assertTrue(text.contains("Control thread failed"), text);
+        assertEquals(DayStatus.INCOMPLETE, status.day);
     }
 
     /**
@@ -473,12 +503,13 @@ class FarmSimulationTest {
         ResourceMeter resources = new ResourceMeter();
         ControlService control = new ControlService(10, List.of(summaries), err);
         SensorLog sensorLog = new SensorLog(Clock.systemUTC());
+        StatusRecorder status = new StatusRecorder();
         SensorProcessor processor = new SensorProcessor(crops, alerts, resources, control,
                 sensorLog, new FarmConfigLoader(null, null).loadSensorRanges("sensors.csv"));
         FarmSimulation simulation = new FarmSimulation(List.of(new ChamberAssignment("CH1", "Tomato")), 1,
                 TestFixtures.fixed(TestFixtures.HOT_CHAMBER), processor, alerts, resources, control,
                 new DailyReport(store, resources, summaries, silent, Clock.systemUTC()),
-                List.of(sensorLog), silent, err);
+                List.of(sensorLog, status), silent, err);
 
         boolean ok = assertTimeoutPreemptively(Duration.ofSeconds(20),
                 () -> simulation.run(dir.resolve("archive").resolve("daily_report.txt")));
@@ -487,6 +518,7 @@ class FarmSimulationTest {
         assertEquals(CYCLES, store.generatedCount(), "every chamber cycle still ran");
         String text = errors.toString(StandardCharsets.UTF_8);
         assertTrue(text.contains(CYCLES + " device actions failed"), text);
+        assertEquals(DayStatus.INCOMPLETE, status.day);
     }
 
     /**
@@ -512,12 +544,13 @@ class FarmSimulationTest {
         ResourceMeter resources = new ResourceMeter();
         ControlService control = new ControlService(10, List.of(summaries), err);
         SensorLog sensorLog = new SensorLog(Clock.systemUTC());
+        StatusRecorder status = new StatusRecorder();
         SensorProcessor processor = new SensorProcessor(crops, alerts, resources, control,
                 sensorLog, new FarmConfigLoader(null, null).loadSensorRanges("sensors.csv"));
         FarmSimulation simulation = new FarmSimulation(List.of(new ChamberAssignment("CH1", "Tomato")), 1,
                 TestFixtures.fixed(TestFixtures.HOT_CHAMBER), processor, alerts, resources, control,
                 new DailyReport(store, resources, summaries, silent, Clock.systemUTC()),
-                List.of(sensorLog), silent, err);
+                List.of(sensorLog, status), silent, err);
 
         boolean ok = assertTimeoutPreemptively(Duration.ofSeconds(20),
                 () -> simulation.run(dir.resolve("archive").resolve("daily_report.txt")));
@@ -526,5 +559,6 @@ class FarmSimulationTest {
         assertEquals(CYCLES, store.generatedCount(), "every alert still reaches the other listeners");
         String text = errors.toString(StandardCharsets.UTF_8);
         assertTrue(text.contains(CYCLES + " alert deliveries failed"), text);
+        assertEquals(DayStatus.INCOMPLETE, status.day);
     }
 }

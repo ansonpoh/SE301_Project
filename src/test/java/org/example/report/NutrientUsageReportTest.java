@@ -27,7 +27,7 @@ class NutrientUsageReportTest {
         report.onAction("CH1", "Cooling Fan", "Temperature reduced to 26.0C");
 
         Path file = dir.resolve(NutrientUsageReport.FILE_NAME);
-        report.save(file);
+        report.save(file, DayStatus.COMPLETE);
 
         List<String> lines = Files.readAllLines(file);
         assertEquals(List.of("--- Nutrient Injector doses ---", "CH1: 2", "CH2: 1", "CH3: 0", "Total: 3"),

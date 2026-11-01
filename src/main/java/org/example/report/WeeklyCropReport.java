@@ -12,7 +12,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
+import java.util.SortedSet;
 import java.util.TreeMap;
+import java.util.TreeSet;
 
 import org.example.crop.CropRules;
 import org.example.model.ChamberSummary;
@@ -26,12 +28,15 @@ import org.example.model.SensorType;
  * Each run simulates one day. Its per-crop figures are appended to
  * weekly_crop_history.csv next to the report, and the report sums the most
  * recent seven days in that file (fewer until a week has been recorded), so a
- * week of runs gives one weekly figure. Delete the history file to start a
+ * week of runs gives one weekly figure. A run that did not complete is not
+ * recorded, so a partial day never counts as a full one. Delete the history file to start a
  * new week. A history file that cannot be read fails the save (and so the
  * run) rather than silently starting over and losing the recorded days.
  *
  * One more DayEndOutput registered in SVFRMS: it only reads SummarySource,
- * UsageTotals and CropRules, so no existing class changed to add it (OCP).
+ * UsageTotals and CropRules. Leaving out an incomplete day took one one-time
+ * change underneath (FarmSimulation passes a DayStatus to every DayEndOutput),
+ * which every later output gets without further changes.
  * Called on the main thread after every chamber and the control thread have stopped.
  */
 public class WeeklyCropReport implements DayEndOutput {
@@ -64,6 +69,7 @@ public class WeeklyCropReport implements DayEndOutput {
     /** Days in the last saved report; main thread only. */
     private int daysRecorded = 0;
     private int cropsReported = 0;
+    private boolean todayRecorded = true;
 
     /** @param cropByChamber every scheduled chamber and its crop, so a crop with no alerts is still listed */
     public WeeklyCropReport(Map<String, String> cropByChamber, SummarySource summaries,
@@ -84,28 +90,35 @@ public class WeeklyCropReport implements DayEndOutput {
     @Override
     public String summaryLine() {
         return "Weekly crop report: " + cropsReported + " crops, " + daysRecorded + " of " + DAYS_IN_WEEK
-                + " days recorded";
+                + " days recorded" + (todayRecorded ? "" : ", today not recorded (incomplete run)");
     }
 
     /**
-     * Records today in the history file, then writes the report for the last
-     * seven days in it.
+     * Adds today to the history, writes the report for the last seven days in
+     * it, then saves the history. An INCOMPLETE day is not added, so its short
+     * figures never count as a full day in the next seven reports; the report
+     * still covers the days already recorded and says today is missing. The
+     * history is saved last, so a report that cannot be written never leaves
+     * today counted as a recorded day.
      *
      * @throws IOException if either file cannot be read or written
      */
     @Override
-    public void save(Path file) throws IOException {
+    public void save(Path file, DayStatus day) throws IOException {
+        boolean completeDay = day == DayStatus.COMPLETE;
         Path historyFile = file.resolveSibling(HISTORY_FILE_NAME);
         List<DayRow> history = readHistory(historyFile);
-        int today = history.isEmpty() ? 1 : history.getLast().day() + 1;
-        String date = LocalDate.now(clock).toString();
-        totalsByCrop().forEach((crop, totals) -> history.add(new DayRow(today, date, crop, totals)));
+        if (completeDay) {
+            int today = history.isEmpty() ? 1 : history.getLast().day() + 1;
+            String date = LocalDate.now(clock).toString();
+            totalsByCrop().forEach((crop, totals) -> history.add(new DayRow(today, date, crop, totals)));
+        }
 
         // Keep only the days this and the next six reports can still include.
-        List<DayRow> week = history.stream().filter(row -> row.day() > today - DAYS_IN_WEEK).toList();
-        writeHistory(historyFile, week);
-
-        int firstDay = week.isEmpty() ? today : week.getFirst().day();   // empty only with no chambers at all
+        int lastDay = history.isEmpty() ? 0 : history.getLast().day();
+        List<DayRow> week = history.stream().filter(row -> row.day() > lastDay - DAYS_IN_WEEK).toList();
+        int firstDay = week.isEmpty() ? 0 : week.getFirst().day();
+        int days = week.isEmpty() ? 0 : lastDay - firstDay + 1;
         SortedMap<String, CropTotals> byCrop = new TreeMap<>();
         for (DayRow row : week) {
             byCrop.merge(row.crop(), row.totals(), CropTotals::plus);
@@ -114,10 +127,17 @@ public class WeeklyCropReport implements DayEndOutput {
         List<String> lines = new ArrayList<>();
         lines.add("===== WEEKLY CROP REPORT =====");
         lines.add("Timestamp: " + Timestamps.now(clock));
-        lines.add("Days recorded: " + (today - firstDay + 1) + " of " + DAYS_IN_WEEK + " (days " + firstDay + "-"
-                + today + "; one simulated day per run, history in " + HISTORY_FILE_NAME + ")");
+        lines.add("Days recorded: " + days + " of " + DAYS_IN_WEEK + " ("
+                + (days > 0 ? "days " + firstDay + "-" + lastDay + "; " : "")
+                + "one simulated day per run, history in " + HISTORY_FILE_NAME + ")");
+        if (!completeDay) {
+            lines.add("Today not recorded: the run did not complete, so its partial figures are left out");
+        }
+        // Today's crops too, so an incomplete first day still lists their profiles.
+        SortedSet<String> profiled = new TreeSet<>(byCrop.keySet());
+        profiled.addAll(cropByChamber.values());
         lines.add("--- crop profiles (acceptable ranges from crops.csv) ---");
-        for (String crop : byCrop.keySet()) {
+        for (String crop : profiled) {
             lines.add(crop + ": " + profile(crop));
         }
         lines.add("--- per crop, summed over the days recorded ---");
@@ -128,9 +148,14 @@ public class WeeklyCropReport implements DayEndOutput {
         }
         lines.add("Total -> " + describe(all));
 
-        Files.write(file, lines, StandardCharsets.UTF_8);   // writeHistory created the folder
-        daysRecorded = today - firstDay + 1;
+        Files.createDirectories(file.toAbsolutePath().getParent());
+        Files.write(file, lines, StandardCharsets.UTF_8);
+        if (completeDay) {
+            writeHistory(historyFile, week);
+        }
+        daysRecorded = days;
         cropsReported = byCrop.size();
+        todayRecorded = completeDay;
     }
 
     /** Sums each chamber's figures for today into its crop, from one snapshot of each source. */
@@ -194,9 +219,8 @@ public class WeeklyCropReport implements DayEndOutput {
         return rows;
     }
 
-    /** Written to a temporary file first, so a failed write never leaves half a history. */
+    /** Written to a temporary file first, so a failed write never leaves half a history. Folder made by save(), which writes the report first. */
     private static void writeHistory(Path historyFile, List<DayRow> rows) throws IOException {
-        Files.createDirectories(historyFile.toAbsolutePath().getParent());
         List<String> lines = new ArrayList<>();
         lines.add(HISTORY_HEADER);
         rows.forEach(row -> lines.add(row.toCsv()));
