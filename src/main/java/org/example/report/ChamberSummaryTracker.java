@@ -30,9 +30,11 @@ public class ChamberSummaryTracker implements AlertListener, ActionListener {
         summaryFor(chamberId).recordAction(deviceName + " Activated");
     }
 
-    /** Summaries sorted by chamber id, for the report. */
-    public SortedMap<String, ChamberSummary> sortedSummaries() {
-        return new TreeMap<>(summaries);
+    /** A consistent snapshot of each summary, sorted by chamber id, for the reports. */
+    public SortedMap<String, ChamberSummary.Snapshot> sortedSummaries() {
+        SortedMap<String, ChamberSummary.Snapshot> sorted = new TreeMap<>();
+        summaries.forEach((chamber, summary) -> sorted.put(chamber, summary.snapshot()));
+        return sorted;
     }
 
     private ChamberSummary summaryFor(String chamberId) {

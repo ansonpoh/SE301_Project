@@ -21,19 +21,12 @@ public class ChamberSummary {
         lastAction = action;
     }
 
-    public synchronized int alerts() {
-        return alerts;
+    /** All four fields read together, as one consistent state. */
+    public record Snapshot(int alerts, int mitigationActions, String lastAction, String lastAlert) {
     }
 
-    public synchronized int mitigationActions() {
-        return mitigationActions;
-    }
-
-    public synchronized String lastAction() {
-        return lastAction;
-    }
-
-    public synchronized String lastAlert() {
-        return lastAlert;
+    /** All four fields under one lock, so a report line never mixes two states. */
+    public synchronized Snapshot snapshot() {
+        return new Snapshot(alerts, mitigationActions, lastAction, lastAlert);
     }
 }

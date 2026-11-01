@@ -65,7 +65,7 @@ class ControlServiceTest {
             consumer.awaitTermination(5, TimeUnit.SECONDS);
         });
 
-        ChamberSummary ch1 = summaries.sortedSummaries().get("CH1");
+        ChamberSummary.Snapshot ch1 = summaries.sortedSummaries().get("CH1");
         assertEquals(producers * requestsEach, ch1.mitigationActions());
         assertEquals("Cooling Fan Activated", ch1.lastAction());
     }

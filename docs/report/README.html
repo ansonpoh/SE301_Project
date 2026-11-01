@@ -70,7 +70,7 @@ and <code>main</code> (349&ndash;392).</p>
 <tr><td>God class</td><td>One class holds the model, rules, devices, queue, threads, reports and file I/O. Any change means retesting everything.</td><td>SRP (i)</td></tr>
 <tr><td>Crop <code>if/else</code> chains</td><td>Adding a crop means editing <code>processSensor</code> in up to 3 places (147&ndash;187). The same alert block is copy-pasted 19 times, with thresholds and costs as magic numbers.</td><td>OCP (ii), DRY</td></tr>
 <tr><td>Device <code>if/else</code> chain</td><td><code>activateControl</code> (90&ndash;129) must be edited for every new device; each branch repeats the same three <code>handleEvent</code> calls.</td><td>OCP (ii), SRP</td></tr>
-<tr><td><code>extends Thread</code></td><td><code>ControlThread</code> swallows <code>interrupt()</code> and loops <code>while(true)</code>, so it does not honour the <code>Thread</code> cancellation contract (251, 258).</td><td>LSP (iii)</td></tr>
+<tr><td><code>extends Thread</code></td><td><code>ControlThread</code> swallows <code>interrupt()</code> and loops <code>while(true)</code>, breaking the <code>Thread</code> postcondition that <code>interrupt()</code> cancels it, so it cannot stand in where a cancellable <code>Thread</code> is expected (251, 258).</td><td>LSP (iii)</td></tr>
 <tr><td>One wide entry point</td><td><code>handleEvent(type, chamber, crop, msg)</code> does logging, storage, counting and printing chosen by a string; callers pass dummy <code>""</code> (95, 142, 148).</td><td>ISP (iv), SRP</td></tr>
 <tr><td>Global mutable state</td><td>Static lists, maps, counters, <code>System.out</code>, <code>new Date()</code>, a static <code>Random</code>: nothing can be tested or replaced.</td><td>DIP (v)</td></tr>
 <tr><td>Stringly-typed messages</td><td>Queue items are <code>chamber + "|" + device</code>, split again by the consumer (136, 269).</td><td>&ndash;</td></tr>
@@ -197,7 +197,7 @@ stops the program before any thread starts, naming the file and line.</li>
   <rect class="box" x="468" y="306" width="132" height="32"/><text class="c" x="534" y="326">ChamberSummaryTracker</text>
   <rect class="box" x="610" y="306" width="132" height="32"/><text class="c" x="676" y="319">ResourceMeter</text><text class="c lbl" x="676" y="332">«UsageMeter» «UsageTotals»</text>
   <rect class="box" x="468" y="362" width="132" height="32"/><text class="c" x="534" y="382">DailyReport</text>
-  <rect class="box" x="610" y="362" width="132" height="40"/><text class="c" x="676" y="371" font-size="7.8">SensorLog <tspan class="lbl">«ReadingLog»</tspan></text><text class="c" x="676" y="380" font-size="7.8">SeverityLog</text><text class="c" x="676" y="389" font-size="7.8">ResourceUsageReport</text><text class="c" x="676" y="398" font-size="7.8">NutrientUsageReport</text>
+  <rect class="box" x="610" y="362" width="132" height="40"/><text class="c" x="676" y="369" font-size="6.6"><tspan class="lbl">«DayEndOutput»</tspan></text><text class="c" x="676" y="377" font-size="6.6">SensorLog <tspan class="lbl">«ReadingLog»</tspan></text><text class="c" x="676" y="385" font-size="6.6">SeverityLog · WeeklyCropReport</text><text class="c" x="676" y="393" font-size="6.6">ResourceUsageReport</text><text class="c" x="676" y="401" font-size="6.6">NutrientUsageReport</text>
 
   <!-- relations -->
   <line class="ln" x1="304" y1="48" x2="329" y2="46"/>
@@ -283,7 +283,7 @@ An invalid CSV file exits with status 2, and an internal error (a built-in resou
 <tr><td>C1</td><td>Summaries created with atomic <code>computeIfAbsent</code>. Chamber state is never looked up: each monitor owns its <code>ChamberState</code> and passes it inside the <code>ControlRequest</code>.</td><td><code>ConcurrentHashMap</code></td></tr>
 <tr><td>C2, C7</td><td>All alert-store methods synchronized on one lock that guards active list, archive and count together; the sensor log is synchronized the same way (timestamp formatted outside the lock).</td><td>intrinsic lock</td></tr>
 <tr><td>C3</td><td>Water and energy, one pair of counters per chamber created atomically; the totals are their sum, so both reports read the same counters.</td><td><code>AtomicInteger.addAndGet</code>, <code>computeIfAbsent</code></td></tr>
-<tr><td>C4, C5</td><td><code>ChamberState.set/adjust</code> and <code>ChamberSummary</code> methods are synchronized; a device's read-modify-write is one call to <code>adjust</code> (the Ventilation System changes both readings in one <code>changeAll</code> call, which runs no outside code under the lock).</td><td>one lock per chamber</td></tr>
+<tr><td>C4, C5</td><td><code>ChamberState.set/adjust</code> and <code>ChamberSummary</code> methods are synchronized (reports read one <code>snapshot()</code>); a device's read-modify-write is one call to <code>adjust</code> (the Ventilation System changes both readings in one <code>changeAll</code> call, which runs no outside code under the lock).</td><td>one lock per chamber</td></tr>
 <tr><td>C6</td><td>Archive, report and save run sequentially on the main thread after all workers finish.</td><td>program order</td></tr>
 <tr><td>C8&ndash;C10</td><td>Unused locks removed. Hand-written buffer replaced. The consumer catches a failing request and keeps going; executors shut down with a timeout. Interrupts are never swallowed: a producer interrupted on a full queue keeps the flag and fails loudly (no silently lost request), if the consumer dies, a waiting producer stops and fails instead of blocking forever (the C10 deadlock), every request still queued is reported and the run fails; and if the stop marker cannot be queued within 30&nbsp;s the consumer is interrupted instead. An interrupted run stops the chambers before the consumer (each chamber checks the flag before every reading, the report waits for the chamber threads to stop, and one that stopped early is named) and still writes its report.</td><td><code>ArrayBlockingQueue</code>, <code>ExecutorService</code></td></tr>
 <tr><td>C11</td><td>Each chamber's <code>Future</code> holds its exception; once every thread has stopped, each one is reported (even if the run was interrupted first) and the exit status is non-zero.</td><td><code>Future</code></td></tr>
@@ -296,7 +296,7 @@ one lock held at a time, the lock-wait graph cannot contain a cycle.</p>
 with the same invariant checker. Seeded serial runs: normalized output <b>identical</b> to the legacy baseline in <b>42/42</b>
 comparisons (21 seeds &times; the 4 legacy chambers and all six legacy crops); the checker prices alerts from the legacy source,
 not our <code>crops.csv</code>. <i>Limits:</i> device lines are compared as counts (their values depend on thread timing), the concurrent run
-only against invariants (legacy output varies run to run), and archive-before-report is the legacy race's usual order (~96%), now fixed. 75 JUnit test methods (87 runs, as the stress tests repeat 3 times), including
+only against invariants (legacy output varies run to run), and archive-before-report is the legacy race's usual order (~96%), now fixed. 78 JUnit test methods (90 runs, as the stress tests repeat 3 times), including
 stress tests that hammer every shared object from 8 threads &times; 5,000 operations, a producer-consumer test with a queue
 of 1, a failing-device test and a crashed-consumer test (C10), an interrupted-producer test (C9), a failing-chamber test (C11, also when the run is interrupted), an interrupted-run and two interrupted-chamber tests (between readings, and while queueing a device request), and a failing-alert-listener test that still fails the run.</div>
 
@@ -314,7 +314,7 @@ of 1, a failing-device test and a crashed-consumer test (C10), an interrupted-pr
 </table>
 <p><b>Crop extension (spec 4.5).</b> Kale, Bok Choy, Bell Pepper and Eggplant were added as rows in <code>crops.csv</code>, with
 <b>no Java changes</b>; each automatically gets the shared light and nutrient rules. The default <code>chambers.csv</code> keeps the 4
-legacy chambers, so a plain run behaves exactly as before. <code>java -jar run.jar demo</code> reads <code>demo/chambers.csv</code>,
+legacy chambers, so a plain run behaves exactly as before. <code>java -jar run.jar demo</code> reads the <code>demo/chambers.csv</code> built into the jar,
 which adds <code>CH5, Kale</code>, <code>CH6, Bok Choy</code> and <code>CH7, Bell Pepper</code> without a rebuild (a notice names the
 override file); this 7-chamber layout also passes 300/300 concurrent runs. Only an explicitly named folder is read, so a stray CSV can
 never change a normal run. A chamber whose crop has no rows (a removed crop or a typo) keeps only the shared rules, as in the legacy

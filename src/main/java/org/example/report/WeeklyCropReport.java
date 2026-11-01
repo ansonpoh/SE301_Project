@@ -85,11 +85,11 @@ public class WeeklyCropReport implements DayEndOutput {
 
     /** Sums each chamber's figures into its crop, from one snapshot of each source. */
     SortedMap<String, CropTotals> totalsByCrop() {
-        SortedMap<String, ChamberSummary> chamberSummaries = summaries.sortedSummaries();
+        SortedMap<String, ChamberSummary.Snapshot> chamberSummaries = summaries.sortedSummaries();
         SortedMap<String, UsageTotals.Usage> usage = resources.usageByChamber();
         SortedMap<String, CropTotals> crops = new TreeMap<>();
         cropByChamber.forEach((chamber, crop) -> {
-            ChamberSummary s = chamberSummaries.get(chamber);
+            ChamberSummary.Snapshot s = chamberSummaries.get(chamber);
             UsageTotals.Usage u = usage.getOrDefault(chamber, new UsageTotals.Usage(0, 0));
             CropTotals chamberTotals = new CropTotals(1, s == null ? 0 : s.alerts(),
                     s == null ? 0 : s.mitigationActions(), u.water(), u.energy());

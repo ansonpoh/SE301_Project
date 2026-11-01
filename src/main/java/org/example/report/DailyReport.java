@@ -69,11 +69,11 @@ public class DailyReport {
         lines.add("---");
         lines.addAll(reportLog);
 
-        SortedMap<String, ChamberSummary> chambers = summaries.sortedSummaries();
+        SortedMap<String, ChamberSummary.Snapshot> chambers = summaries.sortedSummaries();
         if (!chambers.isEmpty()) {
             lines.add("--- chamber wise summary ---");
-            for (Map.Entry<String, ChamberSummary> entry : chambers.entrySet()) {
-                ChamberSummary s = entry.getValue();
+            for (Map.Entry<String, ChamberSummary.Snapshot> entry : chambers.entrySet()) {
+                ChamberSummary.Snapshot s = entry.getValue();
                 lines.add(entry.getKey() + " -> Alerts=" + s.alerts() + ", Actions=" + s.mitigationActions()
                         + ", Last Action=" + s.lastAction() + ", Last Alert=" + s.lastAlert());
             }

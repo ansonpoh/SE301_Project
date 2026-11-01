@@ -67,11 +67,11 @@ class FarmSimulationTest {
         assertExactTotals(null, List.of("CH1", "CH2", "CH3", "CH4"), 2 * 10);
     }
 
-    /** Spec 4.5: demo/chambers.csv adds Kale, Bok Choy and Bell Pepper with no code change. */
+    /** Spec 4.5: the built-in demo/chambers.csv adds Kale, Bok Choy and Bell Pepper with no code change. */
     @Test
     void demoConfigRunsTheNewCrops() throws Exception {
         // +10 kWh per Tomato and Strawberry, +8 kWh per Kale and Bok Choy High Temp alert
-        assertExactTotals(Path.of(System.getProperty("basedir", ".")).resolve("demo"), List.of("CH1", "CH2", "CH3", "CH4", "CH5", "CH6", "CH7"), 2 * 10 + 2 * 8);
+        assertExactTotals(Path.of(System.getProperty("basedir", ".")).resolve("src/main/resources/demo"), List.of("CH1", "CH2", "CH3", "CH4", "CH5", "CH6", "CH7"), 2 * 10 + 2 * 8);
     }
 
     /**

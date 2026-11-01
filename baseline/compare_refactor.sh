@@ -8,7 +8,7 @@
 #    chambers, and all six legacy crops), and diffs its normalized output with
 #    baseline/expected/seed<N>[-all]-normalized.txt. Every one must be identical.
 # 2. Concurrency: runs the real concurrent run.jar many times, with the default
-#    chambers and with the demo/ layout, and checks the same invariants the
+#    chambers and with the built-in demo layout (src/main/resources/demo), and checks the same invariants the
 #    legacy code failed. Summaries in baseline/results/.
 #
 #   SEEDS  seeds to compare (default: [seed] if given, else every seed recorded in expected/)
@@ -77,7 +77,7 @@ echo "BEHAVIOUR: $PASSED/$TOTAL seed/layout runs IDENTICAL to the legacy baselin
 FARM_CHAMBERS="$ROOT/src/main/resources/chambers.csv" "$BASE/stress.sh" "$RUNS" "Refactored concurrent run.jar" "$BASE/results/refactored-stress.txt" \
   "$JAVA" -jar "$ROOT/target/run.jar"
 # Same check with the spec 4.5 demo layout (7 chambers, including Kale, Bok Choy and Bell Pepper).
-FARM_CONFIG="$ROOT/demo" "$BASE/stress.sh" "$RUNS" "Refactored concurrent run.jar demo" "$BASE/results/refactored-demo-stress.txt" \
-  "$JAVA" -jar "$ROOT/target/run.jar" "$ROOT/demo"
+FARM_CONFIG="$ROOT/src/main/resources/demo" "$BASE/stress.sh" "$RUNS" "Refactored concurrent run.jar demo" "$BASE/results/refactored-demo-stress.txt" \
+  "$JAVA" -jar "$ROOT/target/run.jar" "$ROOT/src/main/resources/demo"
 rm -rf "$WORK"
 [ "$PASSED" = "$TOTAL" ] || exit 1

@@ -18,8 +18,8 @@ Two data files changed. **No Java file was edited, added or recompiled by hand**
 +Bok Choy,   SOIL,        LOW,  50,    Water Pump,        40,    0,      {crop} Low Soil Moisture
  *,          LIGHT,       LOW,  500,   Grow Light,        0,     0,      Low Light Level
 
---- demo/chambers.csv
-+++ demo/chambers.csv
+--- src/main/resources/demo/chambers.csv
++++ src/main/resources/demo/chambers.csv
  CH4, Chili
 +CH5, Kale
 +CH6, Bok Choy
@@ -27,7 +27,7 @@ Two data files changed. **No Java file was edited, added or recompiled by hand**
 
 - Both crops also get the shared `*` light and nutrient rules automatically.
 - They reuse existing devices only (Cooling Fan, Humidifier, Dehumidifier, Water Pump), as agreed: no new devices.
-- The chamber rows go in `demo/chambers.csv`, not the built-in `chambers.csv`, so a default run keeps the legacy behaviour (spec section 4) and `java -jar run.jar demo` runs the new crops with no rebuild. The demo file also adds `CH7, Bell Pepper`.
+- The chamber rows go in `demo/chambers.csv` (`src/main/resources/demo/`, packaged inside `run.jar`), not the built-in `chambers.csv`, so a default run keeps the legacy behaviour (spec section 4) and `java -jar run.jar demo` runs the new crops from any folder. A `demo` folder in the working directory, if present, is used instead, so the layout can be edited without a rebuild. The demo file also adds `CH7, Bell Pepper`.
 - **Removing a crop** is the reverse: delete its rows (and its chamber line).
 - If a row names a device that doesn't exist (e.g. `Heater`), the program stops at start-up with `crops.csv line N: unknown device 'Heater'` instead of failing later.
 
@@ -61,4 +61,4 @@ CH6 -> Alerts=35, Actions=32, Last Action=Nutrient Injector Activated, Last Aler
 `JAVA_HOME=/opt/homebrew/opt/openjdk ./baseline/compare_refactor.sh 42 300`
 
 - **Behaviour still identical to the legacy baseline (seed 42).** The default `chambers.csv` is still CH1–CH4, so the harness runs the same chambers as the legacy baseline.
-- **300/300 clean concurrent runs with the default 4 chambers, and 300/300 with the 7 demo chambers.** `check_invariants.py` now reads each alert's water/energy cost from `crops.csv` and the chamber list from `FARM_CHAMBERS`; `FARM_CONFIG=demo` applies the same per-file override as `run.jar demo`, so the expected totals cover Kale and Bok Choy too. Without `FARM_CHAMBERS` it defaults to the 4 legacy chambers, so the legacy stress check is unchanged.
+- **300/300 clean concurrent runs with the default 4 chambers, and 300/300 with the 7 demo chambers.** `check_invariants.py` now reads each alert's water/energy cost from `crops.csv` and the chamber list from `FARM_CHAMBERS`; `FARM_CONFIG=src/main/resources/demo` applies the same per-file override as `run.jar demo`, so the expected totals cover Kale and Bok Choy too. Without `FARM_CHAMBERS` it defaults to the 4 legacy chambers, so the legacy stress check is unchanged.

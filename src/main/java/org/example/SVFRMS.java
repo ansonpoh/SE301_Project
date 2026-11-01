@@ -1,12 +1,22 @@
 package org.example;
 
+import java.io.IOException;
 import java.io.PrintStream;
 import java.io.UncheckedIOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystemAlreadyExistsException;
+import java.nio.file.FileSystemNotFoundException;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
+import java.nio.file.ProviderNotFoundException;
 import java.time.Clock;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.stream.Collectors;
 
@@ -43,6 +53,8 @@ import org.example.sensor.SensorSource;
 public final class SVFRMS {
     public static final Path REPORT_FILE = Path.of("archive", "daily_report.txt");
     private static final int CONTROL_QUEUE_CAPACITY = 5;
+    /** Config folder name that falls back to the copy built into run.jar. */
+    private static final String DEMO = "demo";
 
     private SVFRMS() {
     }
@@ -52,16 +64,16 @@ public final class SVFRMS {
      *
      * With a config folder, a crops.csv, chambers.csv or sensors.csv inside it replaces
      * the built-in file, e.g. "java -jar run.jar demo" adds the Kale, Bok Choy and Bell Pepper chambers
-     * and a stricter sensors.csv, so Sensor Failure alerts appear.
+     * and a stricter sensors.csv, so Sensor Failure alerts appear. "demo" uses the copy built
+     * into run.jar unless a file or folder of that name exists in the working directory.
      */
     public static void main(String[] args) {
         if (args.length > 1) {
             usageError("Too many arguments.");
         }
-        Path configDir = args.length == 1 ? configFolder(args[0]) : null;
-
         FarmSimulation simulation;
         try {
+            Path configDir = args.length == 1 ? configFolder(args[0]) : null;
             simulation = createSimulation(new RandomSensorSource(new Random()), Integer.MAX_VALUE,
                     configDir, System.out, System.err, Clock.systemDefaultZone());
         } catch (IllegalArgumentException | UncheckedIOException e) {
@@ -69,7 +81,7 @@ public final class SVFRMS {
             System.exit(2);
             return;
         } catch (IllegalStateException e) {
-            // Not the user's CSV files: a broken build (missing resource) or a wiring mistake in this class.
+            // Not the user's CSV files: a broken build (missing resource or demo) or a wiring mistake here.
             System.err.println("Internal error: " + e.getMessage());
             System.exit(3);
             return;
@@ -88,6 +100,9 @@ public final class SVFRMS {
             usageError("Not a valid folder name: " + arg);
             return null;
         }
+        if (dir.normalize().equals(Path.of(DEMO)) && !Files.exists(dir)) {
+            return builtInDemoFolder();   // "demo", "./demo" or "demo/" with no demo folder here: use the jar's copy
+        }
         if (!Files.isDirectory(dir)) {
             usageError("Config folder not found: " + dir.toAbsolutePath());
         }
@@ -97,6 +112,42 @@ public final class SVFRMS {
                     + dir.toAbsolutePath());
         }
         return dir;
+    }
+
+    /**
+     * The demo folder inside run.jar (src/main/resources/demo), so "java -jar run.jar demo"
+     * works from any folder. Read through a zip file system when running from the jar.
+     */
+    static Path builtInDemoFolder() {
+        URL url = SVFRMS.class.getResource("/" + DEMO + "/" + FarmConfigLoader.CHAMBERS_FILE);
+        if (url == null) {
+            throw new IllegalStateException("Missing resource: " + DEMO + "/" + FarmConfigLoader.CHAMBERS_FILE);
+        }
+        return demoFolderOf(url);
+    }
+
+    /**
+     * The folder holding the demo chambers.csv at this URL. A jar's zip file system stays
+     * open, because the config loader reads the demo files from it after this returns.
+     */
+    static Path demoFolderOf(URL url) {
+        try {
+            URI uri = url.toURI();
+            if (uri.getScheme().equals("jar")) {
+                FileSystem jar;
+                try {
+                    jar = FileSystems.newFileSystem(uri, Map.of());
+                } catch (FileSystemAlreadyExistsException e) {
+                    jar = FileSystems.getFileSystem(uri);
+                }
+                return jar.getPath("/" + DEMO);
+            }
+            return Path.of(uri).getParent();
+        } catch (URISyntaxException | IOException | IllegalArgumentException
+                | FileSystemNotFoundException | ProviderNotFoundException e) {
+            // A packaging problem (e.g. a URL scheme with no file system), not the user's config: exit 3.
+            throw new IllegalStateException("Could not open built-in " + DEMO + " folder: " + e, e);
+        }
     }
 
     private static void usageError(String message) {

@@ -8,6 +8,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -188,7 +189,7 @@ public class FarmConfigLoader {
         if (configDir != null) {
             Path file = configDir.resolve(resource);
             if (Files.isRegularFile(file)) {
-                notice("Using " + file + " instead of the built-in " + resource);
+                notice("Using " + describe(file) + " instead of the built-in " + resource);
                 return decode(resource, Files.readAllBytes(file));
             }
         }
@@ -202,6 +203,15 @@ public class FarmConfigLoader {
         } catch (IOException e) {
             throw new IllegalStateException("Could not read built-in resource " + resource + ": " + e, e);
         }
+    }
+
+    /** The file as a user would name it: "demo/chambers.csv (inside the jar)" for the built-in demo. */
+    private static String describe(Path file) {
+        if (file.getFileSystem() == FileSystems.getDefault()) {
+            return file.toString();
+        }
+        String inJar = file.toString();
+        return (inJar.startsWith("/") ? inJar.substring(1) : inJar) + " (inside the jar)";
     }
 
     /**
