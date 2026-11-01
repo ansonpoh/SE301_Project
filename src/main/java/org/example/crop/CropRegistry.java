@@ -17,7 +17,7 @@ import org.example.model.SensorType;
  * FarmConfigLoader.loadChambers warns about such a chamber at start-up.
  * Read-only after loading, so it is safe to share between threads.
  */
-public class CropRegistry {
+public class CropRegistry implements CropRules {
     /** Rules per crop and sensor, worked out once here instead of on every reading. */
     private final Map<String, Map<SensorType, List<ThresholdRule>>> rulesByCrop = new HashMap<>();
     private final Map<SensorType, List<ThresholdRule>> sharedOnly;
@@ -27,7 +27,7 @@ public class CropRegistry {
         this.sharedOnly = bySensor(List.of(), sharedRules);
     }
 
-    /** Crop-specific rules for this sensor first, then the shared ones. */
+    @Override
     public List<ThresholdRule> rulesFor(String crop, SensorType sensor) {
         return rulesByCrop.getOrDefault(crop, sharedOnly).get(sensor);
     }

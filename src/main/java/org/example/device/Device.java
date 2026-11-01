@@ -1,5 +1,7 @@
 package org.example.device;
 
+import java.util.Set;
+
 import org.example.model.ChamberState;
 
 /**
@@ -15,4 +17,11 @@ public interface Device {
 
     /** Changes the chamber state and returns the log text, e.g. "Temperature reduced to 19.0C". */
     String apply(ChamberState state);
+
+    /**
+     * The readings apply() moves and which way, e.g. {lowers TEMPERATURE}.
+     * FarmConfigLoader rejects a crops.csv row whose device would not correct
+     * its breach (e.g. a Cooling Fan on a LOW temperature rule).
+     */
+    Set<Effect> effects();
 }

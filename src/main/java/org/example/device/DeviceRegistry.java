@@ -1,6 +1,7 @@
 package org.example.device;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.ServiceConfigurationError;
@@ -43,9 +44,13 @@ public class DeviceRegistry {
 
     /**
      * @throws IllegalStateException if a device with the same name is already
-     *         registered: a wiring mistake, not a config-file error
+     *         registered, or the device declares no effects (so crops.csv could
+     *         not be checked against it): a wiring mistake, not a config-file error
      */
     public DeviceRegistry register(Device device) {
+        if (device.effects() == null || device.effects().isEmpty()) {
+            throw new IllegalStateException("Device declares no effects: " + device.name());
+        }
         if (devices.putIfAbsent(device.name(), device) != null) {
             throw new IllegalStateException("Device registered twice: " + device.name());
         }
@@ -55,6 +60,14 @@ public class DeviceRegistry {
     /** @return the device with this name, or empty if none is registered */
     public Optional<Device> find(String name) {
         return Optional.ofNullable(devices.get(name));
+    }
+
+    /**
+     * Names of the devices with this effect, in registration order, e.g. every
+     * device that raises NUTRIENT for the nutrient consumption report.
+     */
+    public List<String> namesWith(Effect effect) {
+        return devices.values().stream().filter(d -> d.effects().contains(effect)).map(Device::name).toList();
     }
 
     /** @throws IllegalArgumentException if no device has this name */

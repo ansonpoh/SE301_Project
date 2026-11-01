@@ -1,6 +1,7 @@
 package org.example.device;
 
 import java.util.Map;
+import java.util.Set;
 
 import org.example.model.ChamberState;
 import org.example.model.SensorType;
@@ -17,6 +18,11 @@ public class VentilationSystem implements Device {
     @Override
     public String name() {
         return "Ventilation System";
+    }
+
+    @Override
+    public Set<Effect> effects() {
+        return Set.of(Effect.lowers(SensorType.TEMPERATURE), Effect.lowers(SensorType.HUMIDITY));
     }
 
     @Override

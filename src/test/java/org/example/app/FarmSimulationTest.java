@@ -16,6 +16,7 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -31,6 +32,7 @@ import org.example.device.ControlService;
 import org.example.device.ControlSink;
 import org.example.device.CoolingFan;
 import org.example.device.Device;
+import org.example.device.Effect;
 import org.example.model.ChamberState;
 import org.example.model.SensorType;
 import org.example.report.ChamberSummaryTracker;
@@ -230,10 +232,10 @@ class FarmSimulationTest {
 
         // Extension (spec 3.5): the weekly crop report's totals add up to the daily report's.
         List<String> weekly = Files.readAllLines(reportFile.resolveSibling(WeeklyCropReport.FILE_NAME));
-        assertTrue(weekly.contains("Total -> Chambers=" + chambers.size() + ", Alerts=" + alerts + ", Actions=" + alerts
+        assertTrue(weekly.contains("Total -> ChamberDays=" + chambers.size() + ", Alerts=" + alerts + ", Actions=" + alerts
                 + ", Water=" + water + " L, Energy=" + energy + " kWh"), String.join("\n", weekly));
         assertTrue(lines.stream().anyMatch(line -> line.startsWith("Weekly crop report: ")
-                && line.contains(", day 1 of 7 (saved to ")));
+                && line.contains(", 1 of 7 days recorded (saved to ")));
     }
 
     /**
@@ -396,6 +398,10 @@ class FarmSimulationTest {
                 return "Crashing";
             }
 
+            public Set<Effect> effects() {
+                return Set.of();
+            }
+
             public String apply(ChamberState state) {
                 throw new AssertionError("simulated crash");
             }
@@ -431,6 +437,56 @@ class FarmSimulationTest {
         assertFalse(ok);
         String text = errors.toString(StandardCharsets.UTF_8);
         assertTrue(text.contains("Control thread failed"), text);
+    }
+
+    /**
+     * A device that throws is reported and the control thread keeps going, but
+     * the report then misses that action, so the run must still fail (exit status 1).
+     */
+    @Test
+    void failingDeviceFailsTheRun() throws Exception {
+        Device broken = new Device() {
+            public String name() {
+                return "Broken";
+            }
+
+            public Set<Effect> effects() {
+                return Set.of(Effect.lowers(SensorType.TEMPERATURE));
+            }
+
+            public String apply(ChamberState state) {
+                throw new IllegalStateException("device fault");
+            }
+        };
+        ByteArrayOutputStream errors = new ByteArrayOutputStream();
+        PrintStream err = new PrintStream(errors, true, StandardCharsets.UTF_8);
+        PrintStream silent = new PrintStream(new ByteArrayOutputStream());
+
+        // One alert and one device request per cycle (35C > 30C).
+        CropRegistry crops = new CropRegistry(Map.of(), List.of(new ThresholdRule(SensorType.TEMPERATURE,
+                ThresholdRule.Direction.HIGH, 30, broken, 0, 0, Severity.CRITICAL, "{crop} High Temp")));
+        AlertStore store = new AlertStore();
+        ChamberSummaryTracker summaries = new ChamberSummaryTracker();
+        AlertPublisher alerts = new AlertPublisher(err);
+        alerts.subscribe(summaries);
+        alerts.subscribe(store);
+        ResourceMeter resources = new ResourceMeter();
+        ControlService control = new ControlService(10, List.of(summaries), err);
+        SensorLog sensorLog = new SensorLog(Clock.systemUTC());
+        SensorProcessor processor = new SensorProcessor(crops, alerts, resources, control,
+                sensorLog, new FarmConfigLoader(null, null).loadSensorRanges("sensors.csv"));
+        FarmSimulation simulation = new FarmSimulation(List.of(new ChamberAssignment("CH1", "Tomato")), 1,
+                TestFixtures.fixed(TestFixtures.HOT_CHAMBER), processor, alerts, resources, control,
+                new DailyReport(store, resources, summaries, silent, Clock.systemUTC()),
+                List.of(sensorLog), silent, err);
+
+        boolean ok = assertTimeoutPreemptively(Duration.ofSeconds(20),
+                () -> simulation.run(dir.resolve("archive").resolve("daily_report.txt")));
+
+        assertFalse(ok);
+        assertEquals(CYCLES, store.generatedCount(), "every chamber cycle still ran");
+        String text = errors.toString(StandardCharsets.UTF_8);
+        assertTrue(text.contains(CYCLES + " device actions failed"), text);
     }
 
     /**

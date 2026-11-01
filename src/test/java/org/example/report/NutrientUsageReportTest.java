@@ -19,7 +19,7 @@ class NutrientUsageReportTest {
     /** Only the nutrient device counts, and a chamber with no doses is still listed. */
     @Test
     void countsNutrientDosesPerChamber() throws Exception {
-        NutrientUsageReport report = new NutrientUsageReport("Nutrient Injector", List.of("CH2", "CH1", "CH3"),
+        NutrientUsageReport report = new NutrientUsageReport(List.of("Nutrient Injector"), List.of("CH2", "CH1", "CH3"),
                 Clock.systemUTC());
         report.onAction("CH1", "Nutrient Injector", "Nutrient level increased to 75.0%");
         report.onAction("CH1", "Nutrient Injector", "Nutrient level increased to 90.0%");
@@ -38,7 +38,7 @@ class NutrientUsageReportTest {
     /** The control thread is the only caller today, but the counts stay exact under concurrent calls too. */
     @Test
     void losesNoDosesUnderConcurrentCalls() throws Exception {
-        NutrientUsageReport report = new NutrientUsageReport("Nutrient Injector", List.of("CH1"), Clock.systemUTC());
+        NutrientUsageReport report = new NutrientUsageReport(List.of("Nutrient Injector"), List.of("CH1"), Clock.systemUTC());
 
         TestFixtures.runConcurrently(8, () -> {
             for (int i = 0; i < 1000; i++) {

@@ -264,6 +264,37 @@ class FarmConfigLoaderTest {
         assertEquals("CH5 Kale High Temp, check fan", rule.alertText("CH5", "Kale"));
     }
 
+    /** A device that would push the reading further out of range is a copy-paste mistake, caught at start-up. */
+    @Test
+    void rejectsDeviceThatCannotCorrectTheBreach() throws IOException {
+        Files.writeString(dir.resolve("crops.csv"),
+                "Kale, TEMPERATURE, HIGH, 24, Cooling Fan, 0, 8, CRITICAL, {crop} High Temp\n"
+                        + "Kale, TEMPERATURE, LOW, 12, Cooling Fan, 0, 12, CRITICAL, {crop} Low Temp\n");
+
+        IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
+                () -> new FarmConfigLoader(dir, null).loadCrops("crops.csv", devices));
+        assertTrue(e.getMessage().contains("line 2") && e.getMessage().contains("raises TEMPERATURE")
+                && e.getMessage().contains("lowers TEMPERATURE"), e.getMessage());
+
+        // The right device on another sensor is wrong too: a Water Pump does not move temperature.
+        Files.writeString(dir.resolve("crops.csv"),
+                "Kale, TEMPERATURE, LOW, 12, Water Pump, 0, 12, CRITICAL, {crop} Low Temp\n");
+        assertThrows(IllegalArgumentException.class,
+                () -> new FarmConfigLoader(dir, null).loadCrops("crops.csv", devices));
+    }
+
+    /** Spec 3.1: each crop profile's ranges, worked out from its rules plus the shared ones. */
+    @Test
+    void cropProfileRangesComeFromTheRules() {
+        CropRegistry crops = builtInCrops();
+        assertEquals("Temperature 22-28 C", crops.rangeFor("Tomato", SensorType.TEMPERATURE).describe());
+        assertEquals("Humidity 60-80 %", crops.rangeFor("Tomato", SensorType.HUMIDITY).describe());
+        assertEquals("Soil >= 45 %", crops.rangeFor("Tomato", SensorType.SOIL).describe());
+        assertEquals("Light 500-900 lux", crops.rangeFor("Bell Pepper", SensorType.LIGHT).describe());
+        assertEquals("Humidity not monitored", crops.rangeFor("Lettuce", SensorType.HUMIDITY).describe());
+        assertEquals("Nutrient >= 40 %", crops.rangeFor("No Such Crop", SensorType.NUTRIENT).describe());
+    }
+
     @Test
     void newCropsUseTheSpecDevices() {
         CropRegistry crops = builtInCrops();

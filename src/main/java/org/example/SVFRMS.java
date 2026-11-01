@@ -30,7 +30,8 @@ import org.example.crop.CropRegistry;
 import org.example.device.ConsoleActionPrinter;
 import org.example.device.ControlService;
 import org.example.device.DeviceRegistry;
-import org.example.device.NutrientInjector;
+import org.example.device.Effect;
+import org.example.model.SensorType;
 import org.example.report.ChamberSummaryTracker;
 import org.example.report.DailyReport;
 import org.example.report.NutrientUsageReport;
@@ -188,7 +189,8 @@ public final class SVFRMS {
 
         ResourceMeter resources = new ResourceMeter();
         // extension: nutrient doses per chamber, own file
-        NutrientUsageReport nutrientUsage = new NutrientUsageReport(NutrientInjector.NAME,
+        // A dose is a run of any device that raises NUTRIENT, so a new nutrient device is counted too.
+        NutrientUsageReport nutrientUsage = new NutrientUsageReport(devices.namesWith(Effect.raises(SensorType.NUTRIENT)),
                 chambers.stream().map(ChamberAssignment::chamberId).toList(), clock);
         // same order as the legacy code: track the action, then print it
         ControlService control = new ControlService(CONTROL_QUEUE_CAPACITY,
@@ -199,7 +201,7 @@ public final class SVFRMS {
         // extension: alerts, actions and usage per crop, own file
         WeeklyCropReport weekly = new WeeklyCropReport(chambers.stream()
                 .collect(Collectors.toMap(ChamberAssignment::chamberId, ChamberAssignment::crop)),
-                summaries, resources, clock);
+                summaries, resources, crops, clock);
 
         return new FarmSimulation(chambers, maxChamberThreads, sensors, processor, alerts, resources, control, report,
                 List.of(severityLog, sensorLog, new ResourceUsageReport(resources, clock), nutrientUsage, weekly),

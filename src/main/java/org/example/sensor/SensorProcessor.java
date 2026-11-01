@@ -3,7 +3,7 @@ package org.example.sensor;
 import org.example.alert.Alert;
 import org.example.alert.AlertListener;
 import org.example.alert.Severity;
-import org.example.crop.CropRegistry;
+import org.example.crop.CropRules;
 import org.example.crop.ThresholdRule;
 import org.example.device.ControlRequest;
 import org.example.device.ControlSink;
@@ -12,7 +12,7 @@ import org.example.model.SensorType;
 
 /**
  * Handles one sensor reading. Replaces the legacy processSensor(): instead of
- * an if/else chain per crop, it checks whatever rules the CropRegistry holds
+ * an if/else chain per crop, it checks whatever rules CropRules holds
  * for this crop and sensor, so it never needs to change when crops change.
  *
  * Holds no lock while publishing alerts or queueing device requests, so it can
@@ -21,17 +21,18 @@ import org.example.model.SensorType;
  * Alerts, usage, device requests and the reading log go through interfaces
  * (AlertListener, UsageMeter, ControlSink, ReadingLog), so the rule engine does
  * not depend on how they are implemented (Dependency Inversion). Each rule
- * already holds its Device, resolved once when crops.csv is loaded.
+ * already holds its Device, resolved once when crops.csv is loaded. The rules
+ * come through CropRules, not the CSV-loaded CropRegistry.
  */
 public class SensorProcessor {
-    private final CropRegistry crops;
+    private final CropRules crops;
     private final AlertListener alerts;
     private final UsageMeter resources;
     private final ControlSink control;
     private final ReadingLog readingLog;
     private final SensorRanges ranges;
 
-    public SensorProcessor(CropRegistry crops, AlertListener alerts, UsageMeter resources,
+    public SensorProcessor(CropRules crops, AlertListener alerts, UsageMeter resources,
                            ControlSink control, ReadingLog readingLog, SensorRanges ranges) {
         this.crops = crops;
         this.alerts = alerts;

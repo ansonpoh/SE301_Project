@@ -79,7 +79,8 @@ public class FarmSimulation {
      *
      * @return true if every chamber finished without error, the control thread
      *         ran every request and stopped cleanly, every alert reached every
-     *         listener, every report file was saved, and nothing was interrupted
+     *         listener, every device and action listener completed, every
+     *         report file was saved, and nothing was interrupted
      */
     public boolean run(Path reportFile) {
         ExecutorService controlThread = Executors.newSingleThreadExecutor();
@@ -133,6 +134,10 @@ public class FarmSimulation {
         if (failedDeliveries > 0) {
             err.println("ERROR: " + failedDeliveries + " alert deliveries failed; the report totals may be short.");
         }
+        int failedActions = control.failedActions();
+        if (failedActions > 0) {
+            err.println("ERROR: " + failedActions + " device actions failed; the report totals may be short.");
+        }
 
         report.archiveAlerts();
         report.print();
@@ -152,7 +157,8 @@ public class FarmSimulation {
         if (interrupted) {
             Thread.currentThread().interrupt();
         }
-        return failedChambers.isEmpty() && shutdownOk && failedDeliveries == 0 && allSaved && !interrupted;
+        return failedChambers.isEmpty() && shutdownOk && failedDeliveries == 0 && failedActions == 0 && allSaved
+                && !interrupted;
     }
 
     /**

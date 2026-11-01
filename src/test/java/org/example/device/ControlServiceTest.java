@@ -12,6 +12,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -32,6 +33,10 @@ class ControlServiceTest {
     private static final Device BROKEN = new Device() {
         public String name() {
             return "Broken";
+        }
+
+        public Set<Effect> effects() {
+            return Set.of();
         }
 
         public String apply(ChamberState state) {
@@ -93,6 +98,7 @@ class ControlServiceTest {
         });
 
         assertEquals(10, summaries.sortedSummaries().get("CH1").mitigationActions());
+        assertEquals(10, control.failedActions(), "each failure is counted, so the run fails");
     }
 
     /**
@@ -105,6 +111,10 @@ class ControlServiceTest {
         Device crashing = new Device() {
             public String name() {
                 return "Crashing";
+            }
+
+            public Set<Effect> effects() {
+                return Set.of();
             }
 
             public String apply(ChamberState state) {
@@ -169,6 +179,10 @@ class ControlServiceTest {
                 return "Crashing";
             }
 
+            public Set<Effect> effects() {
+                return Set.of();
+            }
+
             public String apply(ChamberState state) {
                 throw new AssertionError("simulated crash");
             }
@@ -213,6 +227,7 @@ class ControlServiceTest {
         String text = errors.toString(StandardCharsets.UTF_8);
         assertTrue(text.contains("Action listener failed for CH1 (Cooling Fan did run)"), text);
         assertFalse(text.contains("Control request failed"), text);
+        assertEquals(1, control.failedActions());
     }
 
     /** Listeners hear about each device run in the order given; the console printer keeps the legacy text. */

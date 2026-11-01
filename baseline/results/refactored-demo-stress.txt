@@ -1,4 +1,4 @@
-Refactored concurrent run.jar demo: 300 runs, Sun Nov  1 10:14:53 MPST 2026
+Refactored concurrent run.jar demo: 300 runs, Sun Nov  1 11:14:35 MPST 2026
 Runs with no detected defect: 300
 
 Defect categories (one run can have several):

@@ -26,6 +26,7 @@ import org.example.crop.CropRegistry;
 import org.example.crop.ThresholdRule;
 import org.example.device.Device;
 import org.example.device.DeviceRegistry;
+import org.example.device.Effect;
 import org.example.model.SensorType;
 import org.example.sensor.SensorRanges;
 
@@ -69,7 +70,8 @@ public class FarmConfigLoader {
 
     /**
      * crop, sensor, HIGH|LOW, limit, device|-, water, energy, severity, message.
-     * The message is the last column, so it may contain commas.
+     * The message is the last column, so it may contain commas. A row's device
+     * must correct its breach: raise the sensor for LOW, lower it for HIGH.
      */
     public CropRegistry loadCrops(String resource, DeviceRegistry devices) {
         Map<String, List<ThresholdRule>> rulesByCrop = new LinkedHashMap<>();
@@ -92,6 +94,18 @@ public class FarmConfigLoader {
                         device, Integer.parseInt(f[5]), Integer.parseInt(f[6]), Severity.valueOf(f[7]), f[8]);
             } catch (IllegalArgumentException e) {
                 throw error(resource, row, e.getMessage());
+            }
+            // A device that pushes the reading further out of range (e.g. a Cooling
+            // Fan on a LOW temperature rule) is a copy-paste mistake, not a choice.
+            if (device != null) {
+                Effect needed = rule.direction() == ThresholdRule.Direction.LOW
+                        ? Effect.raises(rule.sensor()) : Effect.lowers(rule.sensor());
+                if (!device.effects().contains(needed)) {
+                    throw error(resource, row, "device '" + device.name() + "' cannot correct a " + rule.direction()
+                            + " " + rule.sensor() + " reading: that needs a device that " + needed
+                            + ", but it only " + String.join(", ", device.effects().stream().map(Effect::toString)
+                            .sorted().toList()));   // never empty: DeviceRegistry rejects such a device
+                }
             }
             // Two rows that fire on the same readings (e.g. a copy-pasted row with
             // new text) would double that alert, its costs and its device request.

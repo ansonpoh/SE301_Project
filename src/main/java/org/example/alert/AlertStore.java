@@ -10,7 +10,7 @@ import java.util.List;
  * synchronized on this store. One lock guards all three fields, so adding
  * and archiving can never see each other half-done (legacy issues C2, C7).
  */
-public class AlertStore implements AlertListener {
+public class AlertStore implements AlertListener, AlertArchive {
     private final List<String> active = new ArrayList<>();
     private final List<String> archived = new ArrayList<>();
     private int generated = 0;
@@ -21,7 +21,7 @@ public class AlertStore implements AlertListener {
         generated++;
     }
 
-    /** Moves every active alert to the archive and returns the ones moved. */
+    @Override
     public synchronized List<String> archiveActive() {
         List<String> moved = new ArrayList<>(active);
         archived.addAll(moved);
@@ -29,14 +29,17 @@ public class AlertStore implements AlertListener {
         return moved;
     }
 
+    @Override
     public synchronized int generatedCount() {
         return generated;
     }
 
+    @Override
     public synchronized int activeCount() {
         return active.size();
     }
 
+    @Override
     public synchronized List<String> archived() {
         return List.copyOf(archived);
     }

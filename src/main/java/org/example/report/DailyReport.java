@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
 
-import org.example.alert.AlertStore;
+import org.example.alert.AlertArchive;
 import org.example.model.ChamberSummary;
 
 /**
@@ -24,16 +24,16 @@ import org.example.model.ChamberSummary;
 public class DailyReport {
     private static final String HEADER = "===== DAILY REPORT =====";
 
-    private final AlertStore alerts;
+    private final AlertArchive alerts;
     private final UsageTotals resources;
-    private final ChamberSummaryTracker summaries;
+    private final SummarySource summaries;
     private final PrintStream out;
     private final Clock clock;
     /** "Archived N alerts", "Daily Report", ... in the order they happened. Main thread only. */
     private final List<String> reportLog = new ArrayList<>();
 
-    public DailyReport(AlertStore alerts, UsageTotals resources,
-                       ChamberSummaryTracker summaries, PrintStream out, Clock clock) {
+    public DailyReport(AlertArchive alerts, UsageTotals resources,
+                       SummarySource summaries, PrintStream out, Clock clock) {
         this.alerts = alerts;
         this.resources = resources;
         this.summaries = summaries;

@@ -17,7 +17,7 @@ import org.example.model.ChamberSummary;
  * computeIfAbsent on a ConcurrentHashMap is atomic, which fixes the legacy
  * containsKey/put/get race that crashed chamber threads (issue C1).
  */
-public class ChamberSummaryTracker implements AlertListener, ActionListener {
+public class ChamberSummaryTracker implements AlertListener, ActionListener, SummarySource {
     private final Map<String, ChamberSummary> summaries = new ConcurrentHashMap<>();
 
     @Override
@@ -30,7 +30,7 @@ public class ChamberSummaryTracker implements AlertListener, ActionListener {
         summaryFor(chamberId).recordAction(deviceName + " Activated");
     }
 
-    /** A consistent snapshot of each summary, sorted by chamber id, for the reports. */
+    @Override
     public SortedMap<String, ChamberSummary.Snapshot> sortedSummaries() {
         SortedMap<String, ChamberSummary.Snapshot> sorted = new TreeMap<>();
         summaries.forEach((chamber, summary) -> sorted.put(chamber, summary.snapshot()));

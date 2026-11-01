@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Producer-consumer control queue.
@@ -30,6 +31,10 @@ import java.util.concurrent.TimeUnit;
  * It only queues and runs requests. What happens after a device runs (the
  * report summary, the console lines) is up to its ActionListeners (Observer),
  * so this class depends on nothing outside the device package.
+ *
+ * A device or listener that throws is reported and counted, and the consumer
+ * keeps going; FarmSimulation fails the run if any happened, since the report
+ * may then miss that action (same rule as AlertPublisher's failed deliveries).
  */
 public class ControlService implements ControlSink, Runnable {
     private static final ControlRequest STOP = new ControlRequest("STOP", null, null);
@@ -41,12 +46,18 @@ public class ControlService implements ControlSink, Runnable {
     private final PrintStream err;
     /** Set when run() exits other than through STOP. */
     private volatile boolean consumerDead = false;
+    private final AtomicInteger failedActions = new AtomicInteger();
 
     /** @param listeners told about every device run, in this order */
     public ControlService(int capacity, List<ActionListener> listeners, PrintStream err) {
         this.queue = new ArrayBlockingQueue<>(capacity);
         this.listeners = List.copyOf(listeners);
         this.err = err;
+    }
+
+    /** How many times a device or an action listener threw instead of completing. */
+    public int failedActions() {
+        return failedActions.get();
     }
 
     /**
@@ -123,6 +134,7 @@ public class ControlService implements ControlSink, Runnable {
                 try {
                     activate(request);
                 } catch (RuntimeException e) {
+                    failedActions.incrementAndGet();
                     err.println("Control request failed for " + request.chamberId() + ": " + e);
                 }
             }
@@ -163,6 +175,7 @@ public class ControlService implements ControlSink, Runnable {
             try {
                 listener.onAction(request.chamberId(), request.device().name(), result);
             } catch (RuntimeException e) {
+                failedActions.incrementAndGet();
                 err.println("Action listener failed for " + request.chamberId() + " ("
                         + request.device().name() + " did run): " + e);
             }

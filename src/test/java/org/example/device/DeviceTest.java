@@ -1,6 +1,7 @@
 package org.example.device;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -8,6 +9,9 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import org.example.model.ChamberState;
 import org.example.model.SensorType;
@@ -121,6 +125,25 @@ class DeviceTest {
         assertThrows(IllegalStateException.class, () -> registry.register(new CoolingFan()));
     }
 
+    /** A device with no declared effects could not be checked against crops.csv, so it is a broken build. */
+    @Test
+    void registryRejectsADeviceWithNoEffects() {
+        Device silent = new Device() {
+            public String name() {
+                return "Silent";
+            }
+
+            public String apply(ChamberState state) {
+                return "nothing";
+            }
+
+            public Set<Effect> effects() {
+                return Set.of();
+            }
+        };
+        assertThrows(IllegalStateException.class, () -> new DeviceRegistry().register(silent));
+    }
+
     /** Every spec 3.3 device (plus the legacy humidity pair) is found through META-INF/services. */
     @Test
     void discoverFindsEveryListedDevice() {
@@ -129,6 +152,40 @@ class DeviceTest {
                 "Dehumidifier", "Grow Light", "Heating Unit", "Ventilation System", "Shade Controller"}) {
             assertEquals(name, registry.get(name).name());
         }
+    }
+
+    /**
+     * Each device's declared effects are what apply() really does: from mid-range
+     * readings, every declared reading moves the declared way and no other moves.
+     * The crops.csv check and the nutrient report both rely on this.
+     */
+    @Test
+    void declaredEffectsMatchWhatEachDeviceDoes() {
+        Map<SensorType, Double> mid = Map.of(SensorType.TEMPERATURE, 24.0, SensorType.HUMIDITY, 70.0,
+                SensorType.SOIL, 50.0, SensorType.LIGHT, 500.0, SensorType.NUTRIENT, 50.0);
+        DeviceRegistry registry = DeviceRegistry.discover();
+        for (Device device : List.of(new CoolingFan(), new WaterPump(), new NutrientInjector(), new Humidifier(),
+                new Dehumidifier(), new GrowLight(), new HeatingUnit(), new VentilationSystem(),
+                new ShadeController())) {
+            assertFalse(device.effects().isEmpty(), device.name());
+            ChamberState state = new ChamberState();
+            mid.forEach(state::set);
+            device.apply(state);
+            for (SensorType sensor : SensorType.values()) {
+                double before = mid.get(sensor);
+                double after = state.get(sensor);
+                String what = device.name() + " " + sensor;
+                if (device.effects().contains(Effect.raises(sensor))) {
+                    assertTrue(after > before, what);
+                } else if (device.effects().contains(Effect.lowers(sensor))) {
+                    assertTrue(after < before, what);
+                } else {
+                    assertEquals(before, after, what);
+                }
+            }
+        }
+        assertEquals(List.of("Nutrient Injector"), registry.namesWith(Effect.raises(SensorType.NUTRIENT)));
+        assertEquals(List.of("Cooling Fan", "Ventilation System"), registry.namesWith(Effect.lowers(SensorType.TEMPERATURE)));
     }
 
     /**

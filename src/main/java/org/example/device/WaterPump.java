@@ -1,5 +1,7 @@
 package org.example.device;
 
+import java.util.Set;
+
 import org.example.model.ChamberState;
 import org.example.model.SensorType;
 
@@ -9,6 +11,11 @@ public class WaterPump implements Device {
     @Override
     public String name() {
         return "Water Pump";
+    }
+
+    @Override
+    public Set<Effect> effects() {
+        return Set.of(Effect.raises(SensorType.SOIL));
     }
 
     @Override
