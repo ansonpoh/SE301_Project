@@ -18,9 +18,10 @@ import java.util.concurrent.TimeUnit;
  * stop() queues a STOP marker behind every pending request, so the queue is
  * drained before the control thread exits (same as the legacy shutdown flag).
  *
- * A request is never dropped silently: if a producer is interrupted while the
- * queue is full, request() throws, so its chamber fails and is reported; if the
- * control thread dies, every request still queued is reported as not run.
+ * A request is never dropped silently: if a producer is interrupted while
+ * queueing, request() throws with an InterruptedException cause, so its chamber
+ * stops and is reported as a partial day; if the control thread dies, every
+ * request still queued is reported as not run.
  *
  * If the control thread dies (an Error inside a device, or it is interrupted),
  * request() throws instead of waiting forever on a queue nobody empties
@@ -69,6 +70,11 @@ public class ControlService implements ControlSink, Runnable {
                     }
                     break;
                 }
+            }
+            if (Thread.currentThread().isInterrupted()) {
+                // The run is being stopped and the consumer went first: a partial
+                // day for this chamber, not a failure (handled below).
+                throw new InterruptedException();
             }
             throw new IllegalStateException("Control thread has stopped; cannot queue "
                     + request.device().name() + " for " + request.chamberId());

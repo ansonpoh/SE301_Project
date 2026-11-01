@@ -4,8 +4,9 @@ import org.example.model.ChamberState;
 
 /**
  * An automated device (Strategy pattern): each implementation changes the
- * chamber state in its own way. Adding a device = one new class + one
- * registration in SVFRMS; ControlService does not change.
+ * chamber state in its own way. Adding a device = one new class + one line
+ * in META-INF/services/org.example.device.Device (found by DeviceRegistry.discover());
+ * no existing class changes. An implementation needs a public no-argument constructor.
  */
 public interface Device {
 

@@ -98,13 +98,13 @@ These are documented as limitations. They are **not** implemented, because spec 
 | **C7** | **Inconsistent locking discipline**. `alertLock` guards `alerts` in `archiveAlerts`, but the writer (`handleEvent`, 73) never takes it. `generateDailyReport` reads counters under `alertLock`, but their writers never lock | 73, 208, 223 | The locks give a false sense of safety; correctness depends only on the `join()` calls in `main` | by inspection |
 | **C8** | **Unused locks** `waterPumpLock`, `nutrientLock` | 28–29 | Dead code; suggests synchronization was planned and never done | by inspection |
 | **C9** | **Swallowed `InterruptedException`** in both `wait()` loops | 134, 258 | Threads cannot be cancelled; `ControlThread` can only stop through the flag | by inspection |
-| **C10** | **Liveness hazard (hang, not deadlock)**. If the control thread dies (for example, an NPE from C1 inside `activateControl` at 91), producers block forever on a full queue (`wait()` at 134) and `main` blocks on `join()` | 131–139, 251–273 | Program never terminates | Not seen in 450 runs, but reachable |
+| **C10** | **Deadlock in the control queue**. If the control thread dies (for example, an NPE from C1 inside `activateControl` at 91), producers block forever on a full queue (`wait()` at 134) and `main` blocks on `join()` | 131–139, 251–273 | Program never terminates | Not seen in 450 runs, but reachable |
 | **C11** | **Silent thread death**. No `UncaughtExceptionHandler`; `main` writes a "successful" report regardless | 362–391 | Corrupt report with no error status | Yes (every C1 run) |
 | **C12** | **One shared `Random`**. Thread-safe, but the order in which chambers draw numbers is decided by the scheduler, so a fixed seed still does not reproduce a run | 31, 286–290 | Non-reproducible output | Yes |
 
 ### Deadlock assessment (honest)
 
-**No deadlock is reachable in the code as written.** Lock inventory:
+**One deadlock is reachable: C10.** Producers wait for a free slot that only the consumer can make, the consumer is dead, and `main` waits for the producers, so every remaining thread waits on another that will never act; nothing times out, and the swallowed interrupts (C9) mean it cannot be cancelled. It is not a lock-ordering cycle but a wait on a condition no live thread can signal. **No lock-ordering deadlock is reachable as written.** Lock inventory:
 
 | Lock | Acquired at | Nested inside / around |
 |---|---|---|
@@ -114,7 +114,7 @@ These are documented as limitations. They are **not** implemented, because spec 
 
 A deadlock needs a cycle in the lock-wait graph. The only nesting is `alertLock` then `reportLock`, in the same order everywhere, so no cycle can form. Uncommenting the `Thread.sleep(100)` at 224 only widens the window and still cannot deadlock. The code is **one edit away** from the classic deadlock, though: if either method took `reportLock` first, the two report threads could each hold one lock and wait for the other. The refactor will remove the nesting entirely, or document a single global order if nesting is still needed.
 
-The real liveness risk is **C10**, a hang caused by a dead consumer, rather than a lock-ordering deadlock.
+So the deadlock to fix is **C10** (a dead consumer); the lock-ordering one is latent.
 
 ### Evidence (300 runs of the unmodified concurrent `main`)
 

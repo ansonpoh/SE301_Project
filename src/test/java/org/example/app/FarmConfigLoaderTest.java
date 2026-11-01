@@ -17,16 +17,7 @@ import java.util.List;
 import org.example.alert.Severity;
 import org.example.crop.CropRegistry;
 import org.example.crop.ThresholdRule;
-import org.example.device.CoolingFan;
-import org.example.device.Dehumidifier;
 import org.example.device.DeviceRegistry;
-import org.example.device.GrowLight;
-import org.example.device.HeatingUnit;
-import org.example.device.Humidifier;
-import org.example.device.NutrientInjector;
-import org.example.device.ShadeController;
-import org.example.device.VentilationSystem;
-import org.example.device.WaterPump;
 import org.example.model.SensorType;
 import org.example.sensor.SensorRanges;
 import org.junit.jupiter.api.Test;
@@ -40,10 +31,7 @@ class FarmConfigLoaderTest {
             new ChamberAssignment("CH4", "Chili"));
 
     private final FarmConfigLoader loader = new FarmConfigLoader(null, null);
-    private final DeviceRegistry devices = new DeviceRegistry()
-            .register(new CoolingFan()).register(new WaterPump()).register(new NutrientInjector())
-            .register(new Humidifier()).register(new Dehumidifier()).register(new GrowLight())
-            .register(new HeatingUnit()).register(new VentilationSystem()).register(new ShadeController());
+    private final DeviceRegistry devices = DeviceRegistry.discover();   // the same devices the program uses
 
     @TempDir
     Path dir;

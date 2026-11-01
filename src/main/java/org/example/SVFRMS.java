@@ -8,6 +8,7 @@ import java.nio.file.Path;
 import java.time.Clock;
 import java.util.List;
 import java.util.Random;
+import java.util.stream.Collectors;
 
 import org.example.alert.AlertPublisher;
 import org.example.alert.AlertStore;
@@ -18,16 +19,8 @@ import org.example.app.FarmSimulation;
 import org.example.crop.CropRegistry;
 import org.example.device.ConsoleActionPrinter;
 import org.example.device.ControlService;
-import org.example.device.CoolingFan;
-import org.example.device.Dehumidifier;
 import org.example.device.DeviceRegistry;
-import org.example.device.GrowLight;
-import org.example.device.HeatingUnit;
-import org.example.device.Humidifier;
 import org.example.device.NutrientInjector;
-import org.example.device.ShadeController;
-import org.example.device.VentilationSystem;
-import org.example.device.WaterPump;
 import org.example.report.ChamberSummaryTracker;
 import org.example.report.DailyReport;
 import org.example.report.NutrientUsageReport;
@@ -35,6 +28,7 @@ import org.example.report.ResourceMeter;
 import org.example.report.ResourceUsageReport;
 import org.example.report.SensorLog;
 import org.example.report.SeverityLog;
+import org.example.report.WeeklyCropReport;
 import org.example.sensor.RandomSensorSource;
 import org.example.sensor.SensorProcessor;
 import org.example.sensor.SensorRanges;
@@ -124,17 +118,8 @@ public final class SVFRMS {
      */
     public static FarmSimulation createSimulation(SensorSource sensors, int maxChamberThreads, Path configDir,
                                                   PrintStream out, PrintStream err, Clock clock) {
-        NutrientInjector nutrientInjector = new NutrientInjector();
-        DeviceRegistry devices = new DeviceRegistry()
-                .register(new CoolingFan())
-                .register(new WaterPump())
-                .register(nutrientInjector)
-                .register(new Humidifier())
-                .register(new Dehumidifier())
-                .register(new GrowLight())
-                .register(new HeatingUnit())
-                .register(new VentilationSystem())
-                .register(new ShadeController());
+        // Devices are listed in META-INF/services, so adding one needs no change here.
+        DeviceRegistry devices = DeviceRegistry.discover();
 
         FarmConfigLoader config = new FarmConfigLoader(configDir, err);
         CropRegistry crops = config.loadCrops(FarmConfigLoader.CROPS_FILE, devices);
@@ -152,7 +137,7 @@ public final class SVFRMS {
 
         ResourceMeter resources = new ResourceMeter();
         // extension: nutrient doses per chamber, own file
-        NutrientUsageReport nutrientUsage = new NutrientUsageReport(nutrientInjector.name(),
+        NutrientUsageReport nutrientUsage = new NutrientUsageReport(NutrientInjector.NAME,
                 chambers.stream().map(ChamberAssignment::chamberId).toList(), clock);
         // same order as the legacy code: track the action, then print it
         ControlService control = new ControlService(CONTROL_QUEUE_CAPACITY,
@@ -160,8 +145,13 @@ public final class SVFRMS {
         SensorLog sensorLog = new SensorLog(clock);
         SensorProcessor processor = new SensorProcessor(crops, alerts, resources, control, sensorLog, sensorRanges);
         DailyReport report = new DailyReport(alertStore, resources, summaries, out, clock);
+        // extension: alerts, actions and usage per crop, own file
+        WeeklyCropReport weekly = new WeeklyCropReport(chambers.stream()
+                .collect(Collectors.toMap(ChamberAssignment::chamberId, ChamberAssignment::crop)),
+                summaries, resources, clock);
 
         return new FarmSimulation(chambers, maxChamberThreads, sensors, processor, alerts, resources, control, report,
-                List.of(severityLog, sensorLog, new ResourceUsageReport(resources, clock), nutrientUsage), out, err);
+                List.of(severityLog, sensorLog, new ResourceUsageReport(resources, clock), nutrientUsage, weekly),
+                out, err);
     }
 }

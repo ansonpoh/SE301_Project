@@ -85,24 +85,21 @@ list. <b>Only 92 of 300 runs were correct.</b></p>
 <tr><td>C1</td><td>Check-then-act on <code>HashMap</code> (<code>containsKey &rarr; put &rarr; get</code>, 48&ndash;60) from 4 threads</td><td><code>get</code> returns <code>null</code>; the chamber thread dies with an NPE (146, 80) and the chamber vanishes from the report</td><td>123/300 runs</td></tr>
 <tr><td>C2</td><td>Unsynchronized <code>ArrayList.add</code> (64, 73)</td><td>Lost alerts: generated count &ne; archived count</td><td>67/300</td></tr>
 <tr><td>C3</td><td>Non-atomic <code>total += n</code> counters</td><td>Lost water/energy updates</td><td>27 / 24 of 300</td></tr>
-<tr><td>C4</td><td><code>ChamberState</code> written by the chamber and control threads without a lock</td><td><code>temperature - 5</code> uses a stale value or overwrites a newer reading</td><td>yes</td></tr>
+<tr><td>C4, C5</td><td><code>ChamberState</code> (C4) and <code>ChamberSummary</code> (C5, 79&ndash;86) written by chamber and control threads without a lock</td><td><code>temperature - 5</code> uses a stale value or overwrites a newer reading; lost summary counts</td><td>yes</td></tr>
 <tr><td>C6</td><td>Archive and report threads started together (384&ndash;386); a lock gives exclusion, not order</td><td>Report sometimes printed before archiving</td><td>7/300</td></tr>
-<tr><td>C7</td><td><code>alertLock</code> taken by readers but never by writers</td><td>False sense of safety</td><td>inspection</td></tr>
-<tr><td>C9&ndash;C10</td><td><code>InterruptedException</code> swallowed in both <code>wait()</code> loops; if the control thread dies, producers block forever on the full queue</td><td>Uncancellable threads; program hang</td><td>reachable</td></tr>
+<tr><td>C7, C8</td><td><code>alertLock</code> taken by readers but never by writers (C7); <code>waterPumpLock</code>, <code>nutrientLock</code> never used (C8)</td><td>False sense of safety</td><td>inspection</td></tr>
+<tr><td>C9</td><td><code>InterruptedException</code> swallowed in both <code>wait()</code> loops</td><td>Threads cannot be cancelled</td><td>inspection</td></tr>
+<tr><td>C10</td><td><b>Deadlock:</b> if the control thread dies (e.g. C1's NPE in <code>activateControl</code>), producers <code>wait()</code> forever on the full queue and <code>main</code> forever in <code>join()</code></td><td>Program never ends, no report</td><td>reachable via C1</td></tr>
 <tr><td>C11</td><td>No failure handling for threads</td><td>A crashed chamber still produces a "successful" report</td><td>every C1 run</td></tr>
 </table>
-<p><b>Deadlock assessment.</b> The only nested locking is <code>alertLock &rarr; reportLock</code>, taken in the <i>same</i> order in
-<code>generateDailyReport</code> and <code>archiveAlerts</code>, so no cycle can form and no deadlock is reachable as written. It is one
-edit away from the classic deadlock: if either method took <code>reportLock</code> first, each report thread could hold one lock and
-wait for the other. The real liveness risk is C10. Our design removes lock nesting entirely (section 5).</p>
-<p><b>Spec gaps.</b> The code has no severity levels and no sensor-failure alert (spec 3.4); we add both as an extension that
-leaves the legacy output untouched (section 6). Heating Unit, Ventilation System and Shade Controller (spec 3.3) do not exist; we
-add all three as one class each, used by the new crops only (section 6). Other gaps are documented, not changed, because spec 4
-requires preserved behaviour: only Tomato has every rule, there is one combined daily report, and the legacy Cooling Fan and
-Grow Light keep their exact formulas, so a stale request can move a newer reading the wrong way (e.g. light "increased" from 1150 to
-1000 lux); the new devices guard against this. Of the spec 3.5 reports only the daily one existed. Water and energy were already
-metered and nutrient doses already happened, so we added Water, Energy and Nutrient Consumption reports (per chamber, section 6);
-a weekly report would invent data for a one-day run. <b>Deliberate changes:</b> only two failure paths, which hid
+<p><b>Deadlocks.</b> <i>Reachable:</i> C10. Producers wait for a slot only the dead consumer could free and <code>main</code> waits for
+the producers; nothing times out, and C9 means it cannot be cancelled. <i>Latent:</i> <code>alertLock &rarr; reportLock</code> is taken in
+the same order in both report methods, so it cannot cycle as written, but reversing either would let the two report threads each hold
+one lock and wait for the other (the commented-out <code>sleep</code>s at 224 and 385 widen that window). Section 5 removes both.</p>
+<p><b>Spec gaps.</b> Missing: severity levels and the sensor-failure alert (3.4); Heating Unit, Ventilation System and Shade
+Controller (3.3); all 3.5 reports but the daily one. We add them all without touching the legacy output (section 6); the Weekly Crop
+report says it covers day 1 of 7 rather than inventing six days. Kept as-is because spec 4 requires preserved behaviour: only Tomato
+has every rule, and a stale Cooling Fan or Grow Light request can move a newer reading the wrong way (the new devices guard against this). <b>Deliberate changes:</b> only two failure paths, which hid
 defects: a failing alert listener (legacy: silently killed its chamber, C11) and an unsaved report (legacy: exit 0) now exit with status 1.</p>
 
 <h1>3. Proposed Design</h1>
@@ -116,23 +113,20 @@ global light and nutrient limits). <code>SensorProcessor</code> loops over whate
 We chose a CSV over a Java catalogue class because adding a crop to a class is still "modifying existing code" (spec 4.2 ii).</li>
 <li><b>One class per device</b> behind a two-method <code>Device</code> interface. <code>ControlService</code> only queues and runs
 requests; what happens after a device runs (summary, console lines) is up to its <code>ActionListener</code>s.</li>
-<li><b>Observer for alerts.</b> The rule engine publishes one <code>Alert</code>; the summary tracker, the alert store and the console
-printer each do one job.</li>
-<li><b>Objects, not strings, on the queue.</b> A <code>ControlRequest</code> holds the chamber, its state and the device.</li>
+<li><b>Observer for alerts</b>: one <code>Alert</code>, and each listener does one job. <b>Objects, not strings, on the queue</b>: a <code>ControlRequest</code>.</li>
 <li><b>Composition root.</b> Only <code>SVFRMS.createSimulation</code> creates and connects objects; everything else gets its
 dependencies through its constructor, so the tests and the baseline harness can inject a seeded or fixed sensor source.</li>
-<li><b>Fail fast on bad configuration.</b> Every CSV error (unknown device or sensor, wrong column count, empty column, non-finite limit, negative
-cost, duplicate rule or chamber, a crop row repeating a shared row) stops
-the program before any thread starts, naming the file and line; a chamber whose crop has no rows gets a warning.</li>
+<li><b>Fail fast on bad configuration.</b> Every CSV error (unknown device, wrong columns, bad number, duplicate rule or chamber)
+stops the program before any thread starts, naming the file and line.</li>
 </ul>
 <h2>3.1 SOLID mapping</h2>
 <table>
 <tr><th style="width:9%">Spec</th><th>Change</th></tr>
-<tr><td>(i) SRP</td><td>49 small classes and interfaces in 7 packages, each with one job. All report formatting lives in <code>DailyReport</code> only; <code>ControlService</code> only queues and runs requests.</td></tr>
-<tr><td>(ii) OCP</td><td>New crop = rows in <code>crops.csv</code>. New device = new <code>Device</code> class + one registration. New alert output = new <code>AlertListener</code>. No existing class changes.</td></tr>
+<tr><td>(i) SRP</td><td>50 small classes and interfaces in 7 packages, each with one job. All report formatting lives in <code>DailyReport</code> only; <code>ControlService</code> only queues and runs requests.</td></tr>
+<tr><td>(ii) OCP</td><td>New crop = rows in <code>crops.csv</code>. New device = new <code>Device</code> class + one line in its <code>ServiceLoader</code> file. New alert output = new <code>AlertListener</code>. No existing class changes.</td></tr>
 <tr><td>(iii) LSP</td><td>No <code>Thread</code> subclasses: tasks are <code>Runnable</code>s run by an <code>ExecutorService</code>, and the consumer exits on interrupt. <code>Device</code> has only methods every device can honour (no <code>increase()/decrease()</code> pair a fan cannot implement).</td></tr>
 <tr><td>(iv) ISP</td><td><code>handleEvent</code> is replaced by small 1&ndash;3 method interfaces: <code>SensorSource</code>, <code>Device</code>, <code>AlertListener</code>, <code>ActionListener</code>, <code>ControlSink</code>, <code>UsageMeter</code>, <code>ReadingLog</code>, <code>UsageTotals</code>.</td></tr>
-<tr><td>(v) DIP</td><td>The rule engine sees only abstractions: <code>SensorProcessor</code> sends alerts to an <code>AlertListener</code>, charges a <code>UsageMeter</code>, queues on a <code>ControlSink</code> and logs readings to a <code>ReadingLog</code>; <code>ControlService</code> runs any <code>Device</code> and notifies <code>ActionListener</code>s; reports read <code>UsageTotals</code>. So <code>device</code> and <code>sensor</code> no longer depend on <code>report</code> (the interfaces they call live with them). <code>Clock</code>, streams and sensors are injected.</td></tr>
+<tr><td>(v) DIP</td><td>The rule engine sees only abstractions: <code>SensorProcessor</code> sends alerts to an <code>AlertListener</code>, charges a <code>UsageMeter</code>, queues on a <code>ControlSink</code> and logs readings to a <code>ReadingLog</code>; <code>ControlService</code> runs any <code>Device</code> and notifies <code>ActionListener</code>s; reports read <code>UsageTotals</code>. <code>device</code> and <code>sensor</code> never depend on <code>report</code>; <code>Clock</code>, streams and sensors are injected.</td></tr>
 </table>
 
 <h1 class="pagebreak">4. Final Architecture</h1>
@@ -279,9 +273,9 @@ the program before any thread starts, naming the file and line; a chamber whose 
 <code>chambers.csv</code> and wait on each <code>Future</code>; call <code>control.stop()</code>, which queues a stop marker <i>behind</i>
 all pending requests so the queue drains first (giving up after 30&nbsp;s if a device hangs), and check the control thread's own
 <code>Future</code>; then, on the main thread and in this fixed order, archive the alerts, print the
-report and save the file, plus <code>alerts_by_severity.txt</code>, <code>sensor_log.txt</code>, <code>resource_usage.txt</code> and <code>nutrient_usage.txt</code>. If any chamber or the control thread failed, an alert listener failed, or a report file could not be saved, the error is
+report and save the file, plus <code>alerts_by_severity.txt</code>, <code>sensor_log.txt</code>, <code>resource_usage.txt</code>, <code>nutrient_usage.txt</code> and <code>weekly_crop_report.txt</code>. If any chamber or the control thread failed, an alert listener failed, or a report file could not be saved, the error is
 printed and the program exits with status 1; a chamber that stopped before its 20th cycle (without failing) is named as a partial day.
-An invalid CSV file exits with status 2, and an internal error (a built-in resource missing or unreadable, or a device registered twice) with status 3.</p>
+An invalid CSV file exits with status 2, and an internal error (a built-in resource missing or unreadable, or a bad or duplicate device) with status 3.</p>
 
 <h1>5. Concurrency Fixes</h1>
 <table>
@@ -291,7 +285,7 @@ An invalid CSV file exits with status 2, and an internal error (a built-in resou
 <tr><td>C3</td><td>Water and energy, one pair of counters per chamber created atomically; the totals are their sum, so both reports read the same counters.</td><td><code>AtomicInteger.addAndGet</code>, <code>computeIfAbsent</code></td></tr>
 <tr><td>C4, C5</td><td><code>ChamberState.set/adjust</code> and <code>ChamberSummary</code> methods are synchronized; a device's read-modify-write is one call to <code>adjust</code> (the Ventilation System changes both readings in one <code>changeAll</code> call, which runs no outside code under the lock).</td><td>one lock per chamber</td></tr>
 <tr><td>C6</td><td>Archive, report and save run sequentially on the main thread after all workers finish.</td><td>program order</td></tr>
-<tr><td>C8&ndash;C10</td><td>Unused locks removed. Hand-written buffer replaced. The consumer catches a failing request and keeps going; executors shut down with a timeout. Interrupts are never swallowed: a producer interrupted on a full queue keeps the flag and fails loudly (no silently lost request), if the consumer dies, every request still queued is reported and the run fails; and if the stop marker cannot be queued within 30&nbsp;s the consumer is interrupted instead. An interrupted run stops the chambers before the consumer (each chamber checks the flag before every reading, the report waits for the chamber threads to stop, and one that stopped early is named) and still writes its report.</td><td><code>ArrayBlockingQueue</code>, <code>ExecutorService</code></td></tr>
+<tr><td>C8&ndash;C10</td><td>Unused locks removed. Hand-written buffer replaced. The consumer catches a failing request and keeps going; executors shut down with a timeout. Interrupts are never swallowed: a producer interrupted on a full queue keeps the flag and fails loudly (no silently lost request), if the consumer dies, a waiting producer stops and fails instead of blocking forever (the C10 deadlock), every request still queued is reported and the run fails; and if the stop marker cannot be queued within 30&nbsp;s the consumer is interrupted instead. An interrupted run stops the chambers before the consumer (each chamber checks the flag before every reading, the report waits for the chamber threads to stop, and one that stopped early is named) and still writes its report.</td><td><code>ArrayBlockingQueue</code>, <code>ExecutorService</code></td></tr>
 <tr><td>C11</td><td>Each chamber's <code>Future</code> holds its exception; once every thread has stopped, each one is reported (even if the run was interrupted first) and the exit status is non-zero.</td><td><code>Future</code></td></tr>
 </table>
 <p><b>Deadlock freedom by construction.</b> No method holds two locks at once. Each lock (<code>ChamberState</code>,
@@ -302,7 +296,7 @@ one lock held at a time, the lock-wait graph cannot contain a cycle.</p>
 with the same invariant checker. Seeded serial runs: normalized output <b>identical</b> to the legacy baseline in <b>42/42</b>
 comparisons (21 seeds &times; the 4 legacy chambers and all six legacy crops); the checker prices alerts from the legacy source,
 not our <code>crops.csv</code>. <i>Limits:</i> device lines are compared as counts (their values depend on thread timing), the concurrent run
-only against invariants (legacy output varies run to run), and archive-before-report is the legacy race's usual order (~96%), now fixed. 72 JUnit test methods (84 runs, as the stress tests repeat 3 times), including
+only against invariants (legacy output varies run to run), and archive-before-report is the legacy race's usual order (~96%), now fixed. 75 JUnit test methods (87 runs, as the stress tests repeat 3 times), including
 stress tests that hammer every shared object from 8 threads &times; 5,000 operations, a producer-consumer test with a queue
 of 1, a failing-device test and a crashed-consumer test (C10), an interrupted-producer test (C9), a failing-chamber test (C11, also when the run is interrupted), an interrupted-run and two interrupted-chamber tests (between readings, and while queueing a device request), and a failing-alert-listener test that still fails the run.</div>
 
@@ -312,8 +306,8 @@ of 1, a failing-device test and a crashed-consumer test (C10), an interrupted-pr
 <tr><td>Add a crop (Kale)</td><td>Edit <code>processSensor</code> in up to 3 places</td><td>Add rows to <code>crops.csv</code>, and a row such as <code>CH5, Kale</code> to a <code>chambers.csv</code></td></tr>
 <tr><td>Remove a crop</td><td>Delete branches and hope nothing else uses them</td><td>Delete its rows</td></tr>
 <tr><td>Change a threshold or cost</td><td>Find the right <code>if</code> among 19 copies</td><td>Edit one number in one row</td></tr>
-<tr><td>Add a device (Heating Unit)</td><td>Edit <code>activateControl</code></td><td>New <code>HeatingUnit implements Device</code>, register it in <code>SVFRMS</code>, use its name in a CSV row (done for Heating Unit, Ventilation System, Shade Controller)</td></tr>
-<tr><td>Add a report (e.g. weekly)</td><td>Edit <code>main</code> and the report code</td><td>New class reading <code>UsageTotals</code> / <code>ChamberSummaryTracker</code> (or an <code>ActionListener</code>), implementing <code>DayEndOutput</code>; register it in <code>SVFRMS</code> (done for water, energy and nutrients)</td></tr>
+<tr><td>Add a device (Heating Unit)</td><td>Edit <code>activateControl</code></td><td>New <code>HeatingUnit implements Device</code>, list it in <code>META-INF/services</code>, use its name in a CSV row; no existing class changes (done for Heating Unit, Ventilation System, Shade Controller)</td></tr>
+<tr><td>Add a report (e.g. weekly)</td><td>Edit <code>main</code> and the report code</td><td>New class reading <code>UsageTotals</code> / <code>ChamberSummaryTracker</code> (or an <code>ActionListener</code>), implementing <code>DayEndOutput</code>; register it in <code>SVFRMS</code> (done for water, energy, nutrients and the weekly crop report)</td></tr>
 <tr><td>Add an alert output (file, SMS)</td><td>Edit <code>handleEvent</code></td><td>New <code>AlertListener</code>, subscribe it in <code>SVFRMS</code> (done for severity, below)</td></tr>
 <tr><td>Use real sensors</td><td>Rewrite <code>ChamberThread</code></td><td>Implement <code>SensorSource</code>, pass it to <code>createSimulation</code></td></tr>
 <tr><td>Change the report format</td><td>Edit two places</td><td>Edit <code>DailyReport</code></td></tr>
@@ -332,31 +326,31 @@ have stored a newer reading, a device never moves a reading the wrong way (a hea
 WARNING, light INFO). A new <code>SeverityLog</code> listener writes every alert with its level and a count per level to
 <code>archive/alerts_by_severity.txt</code>. A sensor that does not respond, or reports a reading outside its valid range in <code>sensors.csv</code> (NaN,
 humidity outside 0&ndash;100 %), raises a CRITICAL <i>Sensor Failure</i> alert; nothing is stored, no device runs and the chamber
-carries on. <code>demo/sensors.csv</code> models a light sensor that reads at most 1100 lux, so the demo shows these alerts. Two extra
-console lines end the run, e.g. <code>Alerts by severity: INFO=21, WARNING=64, CRITICAL=93</code> and the number of readings saved to
-<code>archive/sensor_log.txt</code> (collected but never used by the legacy code); every legacy console line and the daily report are
+carries on. <code>demo/sensors.csv</code> models a light sensor that reads at most 1100 lux, so the demo shows these alerts. Each
+extension file adds one console line after the legacy output (five in all), e.g. <code>Alerts by severity: INFO=21, WARNING=64, CRITICAL=93</code>;
+the sensor log the legacy code collected but never used is saved to <code>archive/sensor_log.txt</code>; every legacy console line and the daily report are
 still identical to the legacy baseline.</p>
-<p><b>Reporting extension (spec 3.5).</b> <code>ResourceMeter</code> now keeps water and energy per chamber, and a new
-<code>ResourceUsageReport</code> (<code>DayEndOutput</code>) writes the Water Usage and Energy Consumption reports, one line per chamber
-plus the total, to <code>archive/resource_usage.txt</code>. Saving it needed no change to <code>FarmSimulation</code>, but per-chamber figures needed a
-one-time change underneath: <code>UsageMeter</code>'s methods now take the chamber id. The Nutrient Consumption report then needed no change to existing
-classes: <code>NutrientUsageReport</code> is one more <code>ActionListener</code> (counting Nutrient Injector runs per chamber) and <code>DayEndOutput</code>,
-registered in <code>SVFRMS</code>, writing <code>archive/nutrient_usage.txt</code>.</p>
+<p><b>Reporting extension (spec 3.5).</b> Three new <code>DayEndOutput</code>s, registered in <code>SVFRMS</code>, with no change to
+<code>FarmSimulation</code>: <code>ResourceUsageReport</code> (Water Usage and Energy Consumption per chamber, <code>resource_usage.txt</code>;
+this needed one change underneath: <code>UsageMeter</code>'s methods now take the chamber id), <code>NutrientUsageReport</code> (also an
+<code>ActionListener</code> counting Nutrient Injector runs, <code>nutrient_usage.txt</code>) and <code>WeeklyCropReport</code> (alerts,
+actions, water and energy per crop from <code>ChamberSummaryTracker</code> and <code>UsageTotals</code>, <code>weekly_crop_report.txt</code>,
+marked "Days recorded: 1 of 7").</p>
 
 <h1>7. Design Patterns</h1>
 <table>
 <tr><th style="width:17%">Pattern</th><th style="width:25%">Where</th><th>Problem it solves and why we chose it</th></tr>
-<tr><td>Strategy</td><td><code>Device</code> + 9 classes</td><td>The <code>activateControl</code> chain. Each device is a different algorithm behind one interface, so a new device never touches <code>ControlService</code>.</td></tr>
+<tr><td>Strategy</td><td><code>Device</code> + 9 classes</td><td>The <code>activateControl</code> chain. Each device is a different algorithm behind one interface, so a new device never touches <code>ControlService</code>. Devices are found with <code>ServiceLoader</code>, so adding one edits no existing class.</td></tr>
 <tr><td>Observer</td><td><code>AlertPublisher</code> &rarr; <code>AlertListener</code>s</td><td><code>handleEvent</code> did four jobs behind a string switch. The rule engine now raises one alert, and each listener (summary, store, console) does one job. New outputs are new listeners; a failing listener is reported on its own, the rest still run, and the run fails. Device actions use the same pattern (<code>ActionListener</code>: summary, console, nutrient report).</td></tr>
 <tr><td>Command</td><td><code>ControlRequest</code></td><td>Replaces the <code>"CH1|Cooling Fan"</code> string. The request carries the device and the chamber state and has <code>execute()</code>, so the producer decides <i>what</i> and the consumer decides <i>when</i>.</td></tr>
 <tr><td>Producer&ndash;Consumer</td><td><code>ControlService</code></td><td>Replaces the hand-written <code>wait/notifyAll</code> buffer that swallowed interrupts, with the JDK's <code>ArrayBlockingQueue</code> (capacity 5, as before).</td></tr>
-<tr><td>Registry</td><td><code>CropRegistry</code>, <code>DeviceRegistry</code></td><td>Crop and device names were hard-coded in control flow. A lookup by name is all that is needed; no factory hierarchy. A duplicate device name is rejected at start-up.</td></tr>
+<tr><td>Registry</td><td><code>CropRegistry</code>, <code>DeviceRegistry</code></td><td>Crop and device names were hard-coded in control flow. A lookup by name is all that is needed; no factory hierarchy. <code>DeviceRegistry.discover()</code> fills itself from <code>META-INF/services</code>; a duplicate device name is rejected at start-up.</td></tr>
 <tr><td>Composition root (DI)</td><td><code>SVFRMS.createSimulation</code></td><td>Replaces global static state. One place builds the object graph, so tests and the baseline harness can swap the sensor source.</td></tr>
 </table>
 <p><b>Not used on purpose:</b> a Strategy class per crop (crops differ only in numbers, so data is simpler); Singleton (it would
 recreate the global state we removed); Factory (nothing needs a family of products).</p>
 <p><b>Build and run:</b> <code>mvn package</code> (runs the tests and builds <code>target/run.jar</code>), then
-<code>java -jar run.jar</code> (or <code>java -jar run.jar demo</code> for the new crops). The baseline scripts and evidence are in <code>baseline/</code>; the full analysis is in
+<code>java -jar run.jar</code> (or <code>java -jar run.jar demo</code> for the new crops). Evidence: <code>baseline/</code>; full analysis:
 <code>docs/phase1-analysis.md</code> and <code>docs/phase2-design.md</code>.</p>
 
 </body>

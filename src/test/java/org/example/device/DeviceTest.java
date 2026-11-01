@@ -4,9 +4,15 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
 import org.example.model.ChamberState;
 import org.example.model.SensorType;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /** Each device's delta and limit, copied from the legacy activateControl(). */
 class DeviceTest {
@@ -113,5 +119,31 @@ class DeviceTest {
     void registryRejectsADuplicateName() {
         DeviceRegistry registry = new DeviceRegistry().register(new CoolingFan());
         assertThrows(IllegalStateException.class, () -> registry.register(new CoolingFan()));
+    }
+
+    /** Every spec 3.3 device (plus the legacy humidity pair) is found through META-INF/services. */
+    @Test
+    void discoverFindsEveryListedDevice() {
+        DeviceRegistry registry = DeviceRegistry.discover();
+        for (String name : new String[] {"Cooling Fan", "Water Pump", "Nutrient Injector", "Humidifier",
+                "Dehumidifier", "Grow Light", "Heating Unit", "Ventilation System", "Shade Controller"}) {
+            assertEquals(name, registry.get(name).name());
+        }
+    }
+
+    /**
+     * A typo in the services file is a broken build: IllegalStateException (exit
+     * status 3 in SVFRMS), not a ServiceConfigurationError escaping main().
+     */
+    @Test
+    void discoverReportsABadServicesLineAsABrokenBuild(@TempDir Path dir) throws Exception {
+        Path services = dir.resolve("META-INF/services/" + Device.class.getName());
+        Files.createDirectories(services.getParent());
+        Files.writeString(services, "org.example.device.NoSuchDevice\n");
+        try (URLClassLoader loader = new URLClassLoader(new URL[] {dir.toUri().toURL()},
+                Device.class.getClassLoader())) {
+            IllegalStateException e = assertThrows(IllegalStateException.class, () -> DeviceRegistry.discover(loader));
+            assertTrue(e.getMessage().contains("NoSuchDevice"), e.getMessage());
+        }
     }
 }

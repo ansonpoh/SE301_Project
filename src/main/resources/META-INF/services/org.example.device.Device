@@ -1,0 +1,12 @@
+# Every automated device (spec 3.3), found at start-up by DeviceRegistry.discover().
+# To add a device: write a class that implements Device (public, no-argument
+# constructor) and add its name here. Then name the device in a crops.csv row.
+org.example.device.CoolingFan
+org.example.device.WaterPump
+org.example.device.NutrientInjector
+org.example.device.Humidifier
+org.example.device.Dehumidifier
+org.example.device.GrowLight
+org.example.device.HeatingUnit
+org.example.device.VentilationSystem
+org.example.device.ShadeController

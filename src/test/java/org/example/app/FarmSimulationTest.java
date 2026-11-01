@@ -40,6 +40,7 @@ import org.example.report.ResourceMeter;
 import org.example.report.ResourceUsageReport;
 import org.example.report.SensorLog;
 import org.example.report.SeverityLog;
+import org.example.report.WeeklyCropReport;
 import org.example.sensor.ChamberMonitor;
 import org.example.sensor.ReadingLog;
 import org.example.sensor.SensorProcessor;
@@ -226,6 +227,13 @@ class FarmSimulationTest {
         }
         assertTrue(lines.stream().anyMatch(line -> line.startsWith("Nutrient usage: 0 Nutrient Injector doses across "
                 + chambers.size() + " chambers (saved to ")));
+
+        // Extension (spec 3.5): the weekly crop report's totals add up to the daily report's.
+        List<String> weekly = Files.readAllLines(reportFile.resolveSibling(WeeklyCropReport.FILE_NAME));
+        assertTrue(weekly.contains("Total -> Chambers=" + chambers.size() + ", Alerts=" + alerts + ", Actions=" + alerts
+                + ", Water=" + water + " L, Energy=" + energy + " kWh"), String.join("\n", weekly));
+        assertTrue(lines.stream().anyMatch(line -> line.startsWith("Weekly crop report: ")
+                && line.contains(", day 1 of 7 (saved to ")));
     }
 
     /**
@@ -357,16 +365,22 @@ class FarmSimulationTest {
     @Test
     void interruptedRunStillWritesTheReport() throws Exception {
         PrintStream silent = new PrintStream(new ByteArrayOutputStream());
+        ByteArrayOutputStream errors = new ByteArrayOutputStream();
+        PrintStream err = new PrintStream(errors, true, StandardCharsets.UTF_8);
         Path reportFile = dir.resolve("archive").resolve("daily_report.txt");
 
         assertTimeoutPreemptively(Duration.ofSeconds(20), () -> {
             Thread.currentThread().interrupt();
             boolean ok = SVFRMS.createSimulation(TestFixtures.fixed(TestFixtures.HOT_CHAMBER), Integer.MAX_VALUE,
-                    silent).run(reportFile);
+                    null, silent, err, Clock.systemUTC()).run(reportFile);
             assertTrue(Thread.interrupted(), "interrupt flag must be kept");
             assertFalse(ok);
         });
 
+        // Which chambers stop early depends on timing, but an interrupted chamber is
+        // a partial day, never a failure (even if the control thread stopped first).
+        String text = errors.toString(StandardCharsets.UTF_8);
+        assertFalse(text.contains("failed"), text);
         assertTrue(Files.exists(reportFile));
         assertTrue(Files.exists(reportFile.resolveSibling(SeverityLog.FILE_NAME)));
     }
