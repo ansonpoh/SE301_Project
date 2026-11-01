@@ -69,14 +69,15 @@ public final class SVFRMS {
      * into run.jar unless a file or folder of that name exists in the working directory.
      */
     public static void main(String[] args) {
-        if (args.length > 1) {
-            usageError("Too many arguments.");
-        }
         FarmSimulation simulation;
         try {
-            Path configDir = args.length == 1 ? configFolder(args[0]) : null;
             simulation = createSimulation(new RandomSensorSource(new Random()), Integer.MAX_VALUE,
-                    configDir, System.out, System.err, Clock.systemDefaultZone());
+                    configDir(args), System.out, System.err, Clock.systemDefaultZone());
+        } catch (UsageException e) {
+            System.err.println(e.getMessage());
+            System.err.println("Usage: java -jar run.jar [config-folder]");
+            System.exit(2);
+            return;
         } catch (IllegalArgumentException | UncheckedIOException e) {
             System.err.println("Invalid configuration: " + e.getMessage());
             System.exit(2);
@@ -92,25 +93,36 @@ public final class SVFRMS {
         }
     }
 
-    /** The folder named on the command line, or exits with status 2 if it is not a usable config folder. */
+    /**
+     * The config folder named on the command line, or null for the built-in files.
+     *
+     * @throws UsageException if the command line is wrong; main() prints it and exits with status 2
+     */
+    static Path configDir(String[] args) {
+        if (args.length > 1) {
+            throw new UsageException("Too many arguments.");
+        }
+        return args.length == 1 ? configFolder(args[0]) : null;
+    }
+
+    /** @throws UsageException if the folder is not a usable config folder */
     private static Path configFolder(String arg) {
         Path dir;
         try {
             dir = Path.of(arg);
         } catch (InvalidPathException e) {
-            usageError("Not a valid folder name: " + arg);
-            return null;
+            throw new UsageException("Not a valid folder name: " + arg);
         }
         if (dir.normalize().equals(Path.of(DEMO)) && !Files.exists(dir)) {
             return builtInDemoFolder();   // "demo", "./demo" or "demo/" with no demo folder here: use the jar's copy
         }
         if (!Files.isDirectory(dir)) {
-            usageError("Config folder not found: " + dir.toAbsolutePath());
+            throw new UsageException("Config folder not found: " + dir.toAbsolutePath());
         }
         if (FarmConfigLoader.CONFIG_FILES.stream().noneMatch(name -> Files.isRegularFile(dir.resolve(name)))) {
             // Otherwise a wrong folder would silently run the built-in files.
-            usageError("Config folder has none of " + String.join(", ", FarmConfigLoader.CONFIG_FILES) + ": "
-                    + dir.toAbsolutePath());
+            throw new UsageException("Config folder has none of " + String.join(", ", FarmConfigLoader.CONFIG_FILES)
+                    + ": " + dir.toAbsolutePath());
         }
         return dir;
     }
@@ -151,10 +163,11 @@ public final class SVFRMS {
         }
     }
 
-    private static void usageError(String message) {
-        System.err.println(message);
-        System.err.println("Usage: java -jar run.jar [config-folder]");
-        System.exit(2);
+    /** A wrong command line. Only main() turns it into exit status 2, so the checks can be tested. */
+    static final class UsageException extends RuntimeException {
+        UsageException(String message) {
+            super(message);
+        }
     }
 
     /** Built-in config files, errors to System.err, system clock. */

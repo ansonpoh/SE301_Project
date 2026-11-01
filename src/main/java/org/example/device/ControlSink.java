@@ -9,9 +9,9 @@ public interface ControlSink {
     /**
      * May block until the request is accepted.
      *
-     * @throws IllegalStateException if the request cannot be queued; its cause is an
-     *         InterruptedException when the calling thread was interrupted while
+     * @throws RequestInterruptedException if the calling thread was interrupted while
      *         waiting (the interrupt flag is kept), so the caller can stop cleanly
+     * @throws IllegalStateException if the request cannot be queued for any other reason
      */
     void request(ControlRequest request);
 }

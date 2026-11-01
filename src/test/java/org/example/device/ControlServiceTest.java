@@ -128,11 +128,12 @@ class ControlServiceTest {
             ExecutorService consumer = Executors.newSingleThreadExecutor();
             consumer.submit(control);
             control.request(new ControlRequest("CH1", state, crashing));
-            assertThrows(IllegalStateException.class, () -> {
+            IllegalStateException e = assertThrows(IllegalStateException.class, () -> {
                 while (true) {
                     control.request(new ControlRequest("CH1", state, new CoolingFan()));
                 }
             });
+            assertFalse(e instanceof RequestInterruptedException, "a dead consumer is a failure, not a stop");
             assertTrue(control.stop(5, TimeUnit.SECONDS));
             consumer.shutdown();
             assertTrue(consumer.awaitTermination(5, TimeUnit.SECONDS));
@@ -141,8 +142,8 @@ class ControlServiceTest {
 
     /**
      * A producer interrupted while the queue is full must not lose its request
-     * silently: request() throws (so the chamber is reported as failed) and the
-     * interrupt flag is kept. stop() reports that it could not queue the marker.
+     * silently: request() throws RequestInterruptedException (so the chamber stops
+     * and is reported as a partial day) and the interrupt flag is kept. stop() reports that it could not queue the marker.
      */
     @Test
     void interruptedProducerFailsLoudly() {
@@ -152,7 +153,7 @@ class ControlServiceTest {
 
         Thread.currentThread().interrupt();
         try {
-            assertThrows(IllegalStateException.class,
+            assertThrows(RequestInterruptedException.class,
                     () -> control.request(new ControlRequest("CH1", state, new CoolingFan())));
             assertTrue(Thread.currentThread().isInterrupted(), "interrupt flag must be kept");
             assertFalse(control.stop(5, TimeUnit.SECONDS));

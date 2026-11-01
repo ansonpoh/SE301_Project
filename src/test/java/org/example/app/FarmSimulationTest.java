@@ -33,6 +33,7 @@ import org.example.device.ControlSink;
 import org.example.device.CoolingFan;
 import org.example.device.Device;
 import org.example.device.Effect;
+import org.example.device.RequestInterruptedException;
 import org.example.model.ChamberState;
 import org.example.model.SensorType;
 import org.example.report.ChamberSummaryTracker;
@@ -132,7 +133,7 @@ class FarmSimulationTest {
         ControlSink interrupted = request -> {
             requests.incrementAndGet();
             Thread.currentThread().interrupt();
-            throw new IllegalStateException("Interrupted while queueing", new InterruptedException());
+            throw new RequestInterruptedException("Interrupted while queueing", new InterruptedException());
         };
         ChamberMonitor monitor = hotTomatoMonitor(interrupted);
         try {

@@ -20,7 +20,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * drained before the control thread exits (same as the legacy shutdown flag).
  *
  * A request is never dropped silently: if a producer is interrupted while
- * queueing, request() throws with an InterruptedException cause, so its chamber
+ * queueing, request() throws RequestInterruptedException, so its chamber
  * stops and is reported as a partial day; if the control thread dies, every
  * request still queued is reported as not run.
  *
@@ -63,8 +63,8 @@ public class ControlService implements ControlSink, Runnable {
     /**
      * Called by chamber threads. Blocks while the queue is full.
      *
-     * @throws IllegalStateException if interrupted while waiting (the interrupt flag is kept),
-     *                               or if the control thread has died
+     * @throws RequestInterruptedException if interrupted while waiting (the interrupt flag is kept)
+     * @throws IllegalStateException       if the control thread has died
      */
     @Override
     public void request(ControlRequest request) {
@@ -91,7 +91,7 @@ public class ControlService implements ControlSink, Runnable {
                     + request.device().name() + " for " + request.chamberId());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new IllegalStateException("Interrupted while queueing " + request.device().name()
+            throw new RequestInterruptedException("Interrupted while queueing " + request.device().name()
                     + " for " + request.chamberId(), e);
         }
     }

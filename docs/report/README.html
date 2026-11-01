@@ -122,7 +122,7 @@ stops the program before any thread starts, naming the file and line.</li>
 <h2>3.1 SOLID mapping</h2>
 <table>
 <tr><th style="width:9%">Spec</th><th>Change</th></tr>
-<tr><td>(i) SRP</td><td>55 small classes and interfaces in 7 packages plus the <code>SVFRMS</code> entry point, each with one job. All report formatting lives in <code>DailyReport</code> only; <code>ControlService</code> only queues and runs requests.</td></tr>
+<tr><td>(i) SRP</td><td>56 small classes and interfaces in 7 packages plus the <code>SVFRMS</code> entry point, each with one job. All report formatting lives in <code>DailyReport</code> only; <code>ControlService</code> only queues and runs requests.</td></tr>
 <tr><td>(ii) OCP</td><td>New crop = rows in <code>crops.csv</code>. New device = new <code>Device</code> class + one line in its <code>ServiceLoader</code> file. New alert output = new <code>AlertListener</code>. No existing class changes.</td></tr>
 <tr><td>(iii) LSP</td><td>No <code>Thread</code> subclasses: tasks are <code>Runnable</code>s run by an <code>ExecutorService</code>, and the consumer exits on interrupt. <code>Device</code> has only methods every device can honour (no <code>increase()/decrease()</code> pair a fan cannot implement); a test checks that each device does exactly what its <code>effects()</code> declare.</td></tr>
 <tr><td>(iv) ISP</td><td><code>handleEvent</code> is replaced by small 1&ndash;4 method interfaces: <code>SensorSource</code>, <code>Device</code>, <code>AlertListener</code>, <code>ActionListener</code>, <code>ControlSink</code>, <code>UsageMeter</code>, <code>ReadingLog</code>, <code>UsageTotals</code>, <code>AlertArchive</code>, <code>SummarySource</code>, <code>CropRules</code>.</td></tr>
@@ -290,7 +290,7 @@ one lock held at a time, the lock-wait graph cannot contain a cycle.</p>
 with the same invariant checker. Seeded serial runs: normalized output <b>identical</b> to the legacy baseline in <b>42/42</b>
 comparisons (21 seeds &times; the 4 legacy chambers and all six legacy crops); the checker prices alerts from the legacy source,
 not our <code>crops.csv</code>. <i>Limits:</i> device lines are compared as counts (their values depend on thread timing), the concurrent run
-only against invariants (legacy output varies run to run), and archive-before-report is the legacy race's usual order (~96%), now fixed. 87 JUnit test methods (99 runs, as the stress tests repeat 3 times), including
+only against invariants (legacy output varies run to run), and archive-before-report is the legacy race's usual order (~96%), now fixed. 89 JUnit test methods (101 runs, as the stress tests repeat 3 times), including
 stress tests that hammer every shared object from 8 threads &times; 5,000 operations, a producer-consumer test with a queue
 of 1, a failing-device test (the run fails) and a crashed-consumer test (C10), an interrupted-producer test (C9), a failing-chamber test (C11, also when the run is interrupted), an interrupted-run and two interrupted-chamber tests (between readings, and while queueing a device request), and a failing-alert-listener test that still fails the run.</div>
 

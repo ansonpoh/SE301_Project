@@ -1,6 +1,7 @@
 package org.example;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -44,6 +45,23 @@ class SVFRMSTest {
         } finally {
             demo.getFileSystem().close();   // else Windows keeps app.jar locked and @TempDir cannot delete it
         }
+    }
+
+    /** A wrong command line is a usage error (exit 2), thrown rather than exiting so it can be checked here. */
+    @Test
+    void badCommandLinesAreUsageErrors(@TempDir Path tmp) {
+        assertThrows(SVFRMS.UsageException.class, () -> SVFRMS.configDir(new String[] {"a", "b"}));
+        assertThrows(SVFRMS.UsageException.class,
+                () -> SVFRMS.configDir(new String[] {tmp.resolve("missing").toString()}));
+        assertThrows(SVFRMS.UsageException.class, () -> SVFRMS.configDir(new String[] {tmp.toString()}));   // no CSV files
+        assertThrows(SVFRMS.UsageException.class, () -> SVFRMS.configDir(new String[] {"bad\0name"}));   // not a path
+    }
+
+    @Test
+    void goodCommandLinesGiveTheConfigFolder(@TempDir Path tmp) throws Exception {
+        assertNull(SVFRMS.configDir(new String[0]));
+        Files.writeString(tmp.resolve("crops.csv"), "");
+        assertEquals(tmp, SVFRMS.configDir(new String[] {tmp.toString()}));
     }
 
     /** A resource URL with no file system is a broken build (exit 3), not a bad config folder (exit 2). */

@@ -1,5 +1,6 @@
 package org.example.sensor;
 
+import org.example.device.RequestInterruptedException;
 import org.example.model.ChamberState;
 import org.example.model.SensorType;
 
@@ -64,11 +65,8 @@ public class ChamberMonitor implements Runnable {
                 }
                 try {
                     processor.process(chamberId, crop, state, sensor, value);
-                } catch (IllegalStateException e) {
-                    if (e.getCause() instanceof InterruptedException) {
-                        return;   // stopped while queueing a device request: a partial day, not a failure
-                    }
-                    throw e;
+                } catch (RequestInterruptedException e) {
+                    return;   // stopped while queueing a device request: a partial day, not a failure
                 }
             }
             resources.addWater(chamberId, WATER_PER_CYCLE);
