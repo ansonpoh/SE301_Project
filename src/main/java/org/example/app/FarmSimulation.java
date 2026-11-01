@@ -88,27 +88,76 @@ public class FarmSimulation {
         ExecutorService chamberThreads = Executors.newFixedThreadPool(
                 Math.max(1, Math.min(maxChamberThreads, chambers.size())));
         Future<?> controlTask = controlThread.submit(control);
-        List<ChamberMonitor> monitors = new ArrayList<>();
-        List<Future<?>> running = new ArrayList<>();
+        List<RunningChamber> running = startChambers(chamberThreads);
+
+        boolean interrupted = !awaitChambers(running, chamberThreads);
+        Shutdown shutdown = shutDown(chamberThreads, controlThread, controlTask, interrupted);
+        DayStatus day = checkDay(running, shutdown);
+        boolean allSaved = saveOutputs(reportFile, day);
+
+        if (shutdown.interrupted()) {
+            Thread.currentThread().interrupt();
+        }
+        return day == DayStatus.COMPLETE && allSaved;
+    }
+
+    /** A chamber's monitor and the task running it. */
+    private record RunningChamber(ChamberMonitor monitor, Future<?> task) {
+    }
+
+    /**
+     * How the threads stopped.
+     *
+     * @param clean       the control thread ran every request and every thread stopped in time
+     * @param interrupted the calling thread was interrupted at some point
+     */
+    private record Shutdown(boolean clean, boolean interrupted) {
+    }
+
+    /** Submits one ChamberMonitor per row of chambers.csv. */
+    private List<RunningChamber> startChambers(ExecutorService chamberThreads) {
+        List<RunningChamber> running = new ArrayList<>();
         for (ChamberAssignment chamber : chambers) {
             ChamberMonitor monitor = new ChamberMonitor(chamber.chamberId(), chamber.crop(), sensors, processor,
                     resources);
-            monitors.add(monitor);
-            running.add(chamberThreads.submit(monitor));
+            running.add(new RunningChamber(monitor, chamberThreads.submit(monitor)));
         }
+        return running;
+    }
 
-        boolean interrupted = false;
+    /**
+     * Stops the control thread once its queue is drained, then waits for both
+     * pools, so no thread is still running when the report is written.
+     *
+     * @param interrupted whether the wait for the chambers was interrupted
+     */
+    private Shutdown shutDown(ExecutorService chamberThreads, ExecutorService controlThread, Future<?> controlTask,
+                              boolean interrupted) {
+        chamberThreads.shutdown();
+        boolean clean = stopControlThread(controlThread, interrupted);
+        // Clear the flag stop() may have set, so the waits below still work.
+        interrupted |= Thread.interrupted();
         try {
-            awaitChambers(running);
+            clean &= awaitStopped(chamberThreads, "Chamber threads");
+            clean &= awaitStopped(controlThread, "Control thread");
         } catch (InterruptedException e) {
-            // Interrupt the chambers first, so none is left blocked on a full
-            // queue after the control thread has gone.
             interrupted = true;
             chamberThreads.shutdownNow();
+            controlThread.shutdownNow();
         }
-        chamberThreads.shutdown();
-        boolean shutdownOk = !interrupted && control.stop(SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-        if (!shutdownOk) {
+        clean &= controlFinished(controlTask);
+        return new Shutdown(clean, interrupted);
+    }
+
+    /**
+     * Queues the stop marker behind every pending request; if that is not
+     * possible, interrupts the consumer instead.
+     *
+     * @return false if the consumer had to be interrupted
+     */
+    private boolean stopControlThread(ExecutorService controlThread, boolean interrupted) {
+        boolean stopped = !interrupted && control.stop(SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        if (!stopped) {
             // The stop marker was not queued (interrupted, or a device hung with
             // the queue full), so interrupt the consumer instead.
             if (!interrupted) {
@@ -117,19 +166,17 @@ public class FarmSimulation {
             controlThread.shutdownNow();
         }
         controlThread.shutdown();
-        // Clear the flag stop() may have set, so the waits below still work.
-        interrupted |= Thread.interrupted();
-        try {
-            shutdownOk &= awaitStopped(chamberThreads, "Chamber threads");
-            shutdownOk &= awaitStopped(controlThread, "Control thread");
-        } catch (InterruptedException e) {
-            interrupted = true;
-            chamberThreads.shutdownNow();
-            controlThread.shutdownNow();
-        }
-        shutdownOk &= controlFinished(controlTask);
-        List<String> failedChambers = reportFailedChambers(monitors, running);
-        boolean allChambersFinished = reportUnfinishedChambers(monitors, failedChambers);
+        return stopped;
+    }
+
+    /**
+     * Prints everything that went wrong during the day. Today's figures are
+     * short if anything did; an output that keeps days (the weekly report)
+     * then leaves today out.
+     */
+    private DayStatus checkDay(List<RunningChamber> running, Shutdown shutdown) {
+        List<String> failedChambers = reportFailedChambers(running);
+        boolean allChambersFinished = reportUnfinishedChambers(running, failedChambers);
 
         int failedDeliveries = alerts.failedDeliveries();
         if (failedDeliveries > 0) {
@@ -140,12 +187,18 @@ public class FarmSimulation {
             err.println("ERROR: " + failedActions + " device actions failed; the report totals may be short.");
         }
 
-        // Today's figures are short if anything above went wrong; an output that
-        // keeps days (the weekly report) then leaves today out.
-        boolean completeDay = failedChambers.isEmpty() && allChambersFinished && shutdownOk
-                && failedDeliveries == 0 && failedActions == 0 && !interrupted;
-        DayStatus day = completeDay ? DayStatus.COMPLETE : DayStatus.INCOMPLETE;
+        boolean completeDay = failedChambers.isEmpty() && allChambersFinished && shutdown.clean()
+                && failedDeliveries == 0 && failedActions == 0 && !shutdown.interrupted();
+        return completeDay ? DayStatus.COMPLETE : DayStatus.INCOMPLETE;
+    }
 
+    /**
+     * Archives the alerts, then prints and saves the daily report (fixed order),
+     * then saves every other end-of-day output next to it.
+     *
+     * @return false if any file could not be saved
+     */
+    private boolean saveOutputs(Path reportFile, DayStatus day) {
         report.archiveAlerts();
         report.print();
         out.println("System finished sensor processing.");
@@ -160,11 +213,7 @@ public class FarmSimulation {
                 allSaved = false;
             }
         }
-
-        if (interrupted) {
-            Thread.currentThread().interrupt();
-        }
-        return completeDay && allSaved;
+        return allSaved;
     }
 
     /**
@@ -211,9 +260,10 @@ public class FarmSimulation {
      *
      * @return true if every chamber ran all its cycles
      */
-    private boolean reportUnfinishedChambers(List<ChamberMonitor> monitors, List<String> failedChambers) {
+    private boolean reportUnfinishedChambers(List<RunningChamber> running, List<String> failedChambers) {
         boolean allFinished = true;
-        for (ChamberMonitor monitor : monitors) {
+        for (RunningChamber chamber : running) {
+            ChamberMonitor monitor = chamber.monitor();
             if (monitor.cyclesDone() < ChamberMonitor.CYCLES) {
                 allFinished = false;
                 if (!failedChambers.contains(monitor.chamberId())) {
@@ -229,25 +279,35 @@ public class FarmSimulation {
      * Waits for every chamber. A chamber's exception is not reported here but
      * by reportFailedChambers() once all threads have stopped, so it is never
      * lost when this wait is interrupted before reaching that chamber.
+     *
+     * @return false if the wait was interrupted; the chambers are then interrupted too
      */
-    private static void awaitChambers(List<Future<?>> running) throws InterruptedException {
-        for (Future<?> chamber : running) {
-            try {
-                chamber.get();
-            } catch (ExecutionException | CancellationException e) {
-                // reported by reportFailedChambers()
+    private static boolean awaitChambers(List<RunningChamber> running, ExecutorService chamberThreads) {
+        try {
+            for (RunningChamber chamber : running) {
+                try {
+                    chamber.task().get();
+                } catch (ExecutionException | CancellationException e) {
+                    // reported by reportFailedChambers()
+                }
             }
+            return true;
+        } catch (InterruptedException e) {
+            // Interrupt the chambers first, so none is left blocked on a full
+            // queue after the control thread has gone.
+            chamberThreads.shutdownNow();
+            return false;
         }
     }
 
     /** Prints every chamber that threw, with its error (issue C11). @return their ids */
-    private List<String> reportFailedChambers(List<ChamberMonitor> monitors, List<Future<?>> running) {
+    private List<String> reportFailedChambers(List<RunningChamber> running) {
         List<String> failed = new ArrayList<>();
-        for (int i = 0; i < running.size(); i++) {
-            if (running.get(i).state() == Future.State.FAILED) {
-                failed.add(monitors.get(i).chamberId());
-                err.println("ERROR: chamber " + monitors.get(i).chamberId() + " failed: "
-                        + running.get(i).exceptionNow());
+        for (RunningChamber chamber : running) {
+            if (chamber.task().state() == Future.State.FAILED) {
+                failed.add(chamber.monitor().chamberId());
+                err.println("ERROR: chamber " + chamber.monitor().chamberId() + " failed: "
+                        + chamber.task().exceptionNow());
             }
         }
         return failed;

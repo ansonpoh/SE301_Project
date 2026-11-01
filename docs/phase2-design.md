@@ -253,7 +253,7 @@ The order of effects (summary → store → print → cost → device) is the sa
 `FarmSimulation.run()`:
 1. Starts the control consumer.
 2. Submits one `ChamberMonitor` per chamber and waits on each `Future` (an exception is reported, not swallowed: C11).
-3. Calls `controlService.shutdown()`, which queues a stop request *behind* all pending requests, so the queue drains first (legacy semantics).
+3. Calls `control.stop()`, which queues a stop request *behind* all pending requests, so the queue drains first (legacy semantics).
 4. Archives alerts, **then** prints the daily report, on the main thread in a fixed order (C6, Q8).
 5. Prints "System finished sensor processing." and saves `archive/daily_report.txt`.
 
