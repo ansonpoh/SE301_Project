@@ -13,7 +13,7 @@ java -jar run.jar demo           # built-in demo layout (inside run.jar): adds K
 mvn package                      # rebuilds: runs the tests (89 methods, 101 runs) and writes target/run.jar
 ```
 
-A run writes `archive/daily_report.txt` (legacy format), `archive/alerts_by_severity.txt` (every alert tagged INFO / WARNING / CRITICAL, see §5) `archive/sensor_log.txt` (every reading, timestamped), `archive/resource_usage.txt` (water and energy per chamber), `archive/nutrient_usage.txt` (nutrient doses per chamber) and `archive/weekly_crop_report.txt` (alerts, actions, water and energy per crop over the last seven complete runs, with each crop's profile ranges; all spec 3.5; the days are kept in `archive/weekly_crop_history.csv`). Exit status: 0 = success, 1 = a chamber, the control thread, a device, or an alert or action listener failed, or a report file could not be saved, 2 = invalid configuration, 3 = internal error (a built-in resource missing or unreadable, a bad device list or a device registered twice). The full technical report is `README.pdf`.
+A run writes `archive/daily_report.txt` (legacy format), `archive/alerts_by_severity.txt` (every alert tagged INFO / WARNING / CRITICAL, see §5) `archive/sensor_log.txt` (every reading, timestamped), `archive/resource_usage.txt` (water and energy per chamber), `archive/nutrient_usage.txt` (nutrient doses per chamber) and `archive/weekly_crop_report.txt` (alerts, actions, water and energy per crop over the last seven complete runs, with each crop's profile ranges; all spec 3.5; the days are kept in `archive/weekly_crop_history.csv`). Exit status: 0 = success, 1 = a chamber, the control thread, a device, or an alert or action listener failed, or a report file could not be saved, 2 = invalid configuration or command line, 3 = internal error (a built-in resource missing or unreadable, a bad device list or a device registered twice). The full technical report is `README.pdf`.
 
 Legacy line numbers below refer to the original file, kept unchanged at `baseline/legacy/org/example/SVFRMS.java` (393 lines).
 
@@ -49,7 +49,7 @@ The intern added threads for performance: four chamber threads produce readings 
 |---|---|---|---|
 | S1 | **God class.** The model, rules, devices, queue, threads, reports and file I/O all live in one class | whole file | SRP (i) |
 | S2 | **Global mutable state.** Every field is `public static`, so any code can change anything | 10–31 | SRP, DIP (v) |
-| S3 | **String-typed event hub.** `handleEvent("CREATE_ALERT", chamber, "", msg)` does logging, storing, counting and printing. Callers pass dummy `""` arguments the branch ignores | 62–88, 142 | SRP (i), ISP (iv) |
+| S3 | **String-typed event hub.** `handleEvent("TRACK_ALERT", chamber, "", msg)`, `handleEvent("LOG", "", "", …)` and the like do logging, storing, counting and printing. Callers pass dummy `""` arguments the branch ignores | 62–88, 142 | SRP (i), ISP (iv) |
 | S4 | **Crop rules hard-coded in control flow.** The same alert block is copy-pasted **19 times**; adding a crop means editing `processSensor` in up to 3 places | 147–203 | **OCP (ii)** |
 | S5 | **Magic numbers.** Thresholds, costs, device deltas and random ranges are scattered through the code | 94–124, 148–202, 285–292 | OCP |
 | S6 | **Device `if/else` chain.** Adding a Heating Unit means editing `activateControl` | 90–129 | OCP, SRP |
@@ -88,7 +88,7 @@ if(value>28){handleEvent("TRACK_ALERT", chamber, "", chamber+" Tomato High Temp"
 
 One minor issue is left out of this table: C12, one shared `Random`, which is thread-safe but makes runs non-reproducible. The full list is in `docs/phase1-analysis.md`.
 
-**Deadlocks.** *Reachable:* C10. Producers wait for a free slot that only the consumer can make, the consumer is gone, and `main` waits for the producers, so every remaining thread waits on another that will never act. Nothing times out, and the swallowed interrupts (C9) mean it cannot even be cancelled. *Latent lock-order deadlock:* the only nested locks are `alertLock` → `reportLock`, taken in the same order in both methods, so no cycle can form as written. It is one edit away, though: if either method took `reportLock` first, the two report threads could each hold one lock and wait for the other (the commented-out `sleep` calls at 224 and 385 widen exactly that window). The refactored design removes both (§3.3).
+**Deadlocks.** *Reachable:* C10. Producers wait for a free slot that only the consumer can make, the consumer is gone, and `main` waits for the producers, so every remaining thread waits on another that will never act. Nothing times out, and the swallowed interrupts (C9) mean it cannot even be cancelled. *Latent lock-order deadlock:* the only nested locks are `alertLock` → `reportLock`, taken in the same order in both methods, so no cycle can form as written. It is one edit away, though: if either method took `reportLock` first, the two report threads could each hold one lock and wait for the other (the commented-out `sleep` at 224, inside the `alertLock` region, widens exactly that window). The refactored design removes both (§3.3).
 
 **Evidence.** We ran the unmodified program 300 times and checked invariants that must always hold. For example, water = 160 + the sum of the archived alerts' water costs, and `Generated Alerts` must equal the number of archived alerts (`baseline/check_invariants.py`):
 
@@ -123,7 +123,7 @@ Spec section 4 says to preserve behaviour, so these legacy behaviours are kept u
 
 ### 3.1 Key changes and decisions
 
-1. **Split the monolith into 7 small packages** (`model`, `crop`, `sensor`, `device`, `alert`, `report`, `app`): 56 small classes and interfaces, most under 100 lines. `org.example.SVFRMS` remains the entry point but only wires objects together (S1, S2, S15).
+1. **Split the monolith into 7 small packages** (`model`, `crop`, `sensor`, `device`, `alert`, `report`, `app`): 56 small classes and interfaces, most under 100 lines. `org.example.SVFRMS` remains the entry point but only wires objects together (S1, S2).
 2. **Crop rules become data (S4, S5).** The 19 copy-pasted blocks became 19 rows in `src/main/resources/crops.csv`:
    ```
    # crop,  sensor,      dir,  limit, device,       water, energy, severity, message
@@ -155,7 +155,7 @@ Spec section 4 says to preserve behaviour, so these legacy behaviours are kept u
 | **(ii) OCP** | A new crop meant editing 3 `if` chains | A new crop means new rows in `crops.csv`, with **zero** Java edits (§5). A new device is a new class |
 | **(iii) LSP** | `ControlThread extends Thread` ignores `interrupt()` | No `Thread` subclasses: tasks are `Runnable`s run by an `ExecutorService`, and they honour interrupts. Every `Device` can honour the whole interface |
 | **(iv) ISP** | One wide `handleEvent(type, chamber, crop, msg)`; callers pass dummy `""` | Small interfaces, each with 1–4 methods: `SensorSource`, `Device`, `AlertListener`, `ActionListener`, `ControlSink`, `UsageMeter`, `ReadingLog`, `UsageTotals`, `AlertArchive`, `SummarySource`, `CropRules`. `ResourceMeter` is split by client: chamber code charges it as a `UsageMeter`, the reports read it as `UsageTotals` |
-| **(v) DIP** | Static fields, `System.out`, `new Date()`, static `Random` | The rule engine depends only on abstractions: `SensorProcessor` reads its rules from `CropRules`, sends alerts to an `AlertListener`, charges a `UsageMeter`, queues on a `ControlSink` and logs readings to a `ReadingLog`; `ChamberMonitor` reads a `SensorSource`; `ControlService` runs any `Device` and tells `ActionListener`s; the reports read `AlertArchive`, `SummarySource`, `UsageTotals` and `CropRules`, never `AlertStore`, `ChamberSummaryTracker`, `ResourceMeter` or `CropRegistry`; the nutrient report finds its devices by declared effect (`raises NUTRIENT`), not by class. Concrete objects are created only in `SVFRMS` (composition root). The `device` and `sensor` packages no longer depend on `report`: the interfaces they call (`ActionListener`, `UsageMeter`, `ReadingLog`) live with them, so `report` depends on them and never the other way |
+| **(v) DIP** | Static fields, `System.out`, `new Date()`, static `Random` | The rule engine depends only on abstractions: `SensorProcessor` reads its rules from `CropRules`, sends alerts to an `AlertListener`, charges a `UsageMeter`, queues on a `ControlSink` and logs readings to a `ReadingLog`; `ChamberMonitor` reads a `SensorSource`; `ControlService` runs any `Device` and tells `ActionListener`s; the reports read `AlertArchive`, `SummarySource`, `UsageTotals` and `CropRules`, never `AlertStore`, `ChamberSummaryTracker`, `ResourceMeter` or `CropRegistry`; the nutrient report is given its devices by declared effect (`raises NUTRIENT`, looked up in `SVFRMS`), not by class. Every long-lived collaborator is created and wired only in `SVFRMS` (composition root); `FarmConfigLoader` and `FarmSimulation` create only what they own (the registry built from the CSV, the per-run monitors and executors). The `device` and `sensor` packages no longer depend on `report`: the interfaces they call (`ActionListener`, `UsageMeter`, `ReadingLog`) live with them, so `report` depends on them and never the other way |
 
 ### 3.3 Concurrency fixes
 
@@ -182,18 +182,23 @@ Spec section 4 says to preserve behaviour, so these legacy behaviours are kept u
 
 ```mermaid
 flowchart LR
-    CSV[("crops.csv<br/>chambers.csv")] --> CFG[FarmConfigLoader]
+    CSV[("crops.csv<br/>chambers.csv<br/>sensors.csv")] --> CFG[FarmConfigLoader]
     MAIN["SVFRMS<br/>(wiring)"] --> SIM[FarmSimulation]
     MAIN --> CFG
     CFG --> REG[CropRegistry]
     SIM -->|"1 thread per chamber"| MON[ChamberMonitor]
     SIM -->|"1 control thread"| CTRL["ControlService<br/>BlockingQueue(5)"]
     SIM --> RPT[DailyReport]
-    SIM --> USE[ResourceUsageReport]
-    SIM --> NUT[NutrientUsageReport]
+    SIM --> OUT[["DayEndOutput"]]
+    OUT -.-> USE[ResourceUsageReport]
+    OUT -.-> NUT[NutrientUsageReport]
+    OUT -.-> WK[WeeklyCropReport]
+    OUT -.-> SEV
+    OUT -.-> SLOG
     MON --> SRC[["SensorSource"]]
     MON --> PROC[SensorProcessor]
-    PROC --> REG
+    PROC --> RULES[["CropRules"]]
+    RULES -.-> REG
     REG -->|"each rule holds its Device"| DEV
     PROC --> STATE[ChamberState]
     PROC --> METER[["UsageMeter"]]
@@ -213,12 +218,18 @@ flowchart LR
     AL -.-> TRK
     AL -.-> APRN[ConsoleActionPrinter]
     AL -.-> NUT
-    RPT --> STORE
+    RPT --> ARCH[["AlertArchive"]]
+    ARCH -.-> STORE
     RPT --> TOT[["UsageTotals"]]
     USE --> TOT
     TOT -.-> RM[ResourceMeter]
     METER -.-> RM
-    RPT --> TRK
+    RPT --> SUMS[["SummarySource"]]
+    SUMS -.-> TRK
+    WK --> ARCH
+    WK --> SUMS
+    WK --> TOT
+    WK --> RULES
 ```
 `[[…]]` = interface. Device implementations: `CoolingFan`, `WaterPump`, `NutrientInjector`, `Humidifier`, `Dehumidifier`, `GrowLight`, `HeatingUnit`, `VentilationSystem`, `ShadeController`.
 
@@ -226,11 +237,11 @@ flowchart LR
 |---|---|
 | `app` | `FarmSimulation` (runs one day), `FarmConfigLoader`, `ChamberAssignment` |
 | `model` | `SensorType` (enum), `ChamberState`, `ChamberSummary` |
-| `crop` | `ThresholdRule`, `CropProfile`, `CropRegistry` |
+| `crop` | `ThresholdRule`, `AcceptableRange`, `CropProfile`, `CropRules`, `CropRegistry` |
 | `sensor` | `SensorSource`, `RandomSensorSource`, `SensorProcessor`, `ReadingLog`, `UsageMeter`, `SensorRanges`, `ChamberMonitor` |
-| `device` | `Device` + 9 devices, `DeviceRegistry`, `ControlRequest`, `ControlSink`, `ControlService`, `RequestInterruptedException`, `ActionListener`, `ConsoleActionPrinter` |
-| `alert` | `Alert`, `Severity`, `AlertListener`, `AlertPublisher`, `AlertStore`, `ConsoleAlertPrinter` |
-| `report` | `ChamberSummaryTracker`, `ResourceMeter`, `DailyReport`, `ResourceUsageReport`, `NutrientUsageReport`, `WeeklyCropReport`, `UsageTotals`, `DayEndOutput`, `SeverityLog`, `SensorLog`, `Timestamps` |
+| `device` | `Device` + 9 devices, `Effect`, `DeviceRegistry`, `ControlRequest`, `ControlSink`, `ControlService`, `RequestInterruptedException`, `ActionListener`, `ConsoleActionPrinter` |
+| `alert` | `Alert`, `Severity`, `AlertListener`, `AlertPublisher`, `AlertArchive`, `AlertStore`, `ConsoleAlertPrinter` |
+| `report` | `ChamberSummaryTracker`, `ResourceMeter`, `DailyReport`, `ResourceUsageReport`, `NutrientUsageReport`, `WeeklyCropReport`, `UsageTotals`, `SummarySource`, `DayEndOutput`, `DayStatus`, `SeverityLog`, `SensorLog`, `Timestamps` |
 
 ### 4.2 Sequence: one high-temperature reading in CH1
 
@@ -247,8 +258,8 @@ sequenceDiagram
     P->>S: set(TEMPERATURE, 31)
     P->>P: rule "Tomato TEMPERATURE HIGH 28" breached
     P->>A: onAlert(Alert "CH1 Tomato High Temp")
-    A-->>A: summary tracker → store → console
-    P->>P: ResourceMeter.addEnergy(CH1, 10)
+    A-->>A: summary tracker → store → console → severity log
+    P->>P: UsageMeter.addEnergy(CH1, 10)
     P->>Q: request(ControlRequest(CH1, state, CoolingFan)) — blocks if 5 queued
     C->>Q: take()
     C->>F: apply(state)
@@ -287,7 +298,7 @@ Both new crops automatically get the shared light and nutrient rules. With the 7
 
 **Changing crops without rebuilding.** `java -jar run.jar <folder>` uses `<folder>/crops.csv`, `chambers.csv` and `sensors.csv` in place of the built-in files when they exist, and prints which file it used. A chamber whose crop has no rows in `crops.csv` still runs with only the shared rules, as in the legacy code, but now prints a start-up warning, so a typo is visible. A row with an empty column, a limit that is not a finite number, a negative cost, or a second rule with the same crop, sensor, direction and limit (including a crop row that repeats a shared `*` row) stops the program with the file and line. The message is the last column, so it may contain commas. `java -jar run.jar demo` reads the demo layout built into the jar (`src/main/resources/demo`; a `demo` folder in the working directory takes priority): its `chambers.csv` adds `CH5, Kale`, `CH6, Bok Choy` and `CH7, Bell Pepper` for the presentation, and its `sensors.csv` models a light sensor that reads at most 1100 lux, so the demo also shows Sensor Failure alerts. Only a folder named on the command line is read, so a stray CSV can never change a normal run. Files saved by Notepad or PowerShell (byte-order mark, UTF-16, or appended with `>>`) are read correctly; any other non-UTF-8 text stops the program with the file name instead of being silently altered.
 
-**Alerting extension (spec 3.4).** Each rule has a severity column (temperature CRITICAL; humidity, soil and nutrient WARNING; light INFO). A new `SeverityLog` listener writes every alert with its level, plus a count per level, to `archive/alerts_by_severity.txt`. A sensor that reports a reading outside its valid range in `sensors.csv` (e.g. NaN, humidity outside 0–100 %) or does not respond at all raises a CRITICAL *Sensor Failure* alert; the value is not stored, no device is triggered, and the chamber carries on with its other sensors. At the end of the run one extra console line gives the count per level, e.g. `Alerts by severity: INFO=21, WARNING=64, CRITICAL=93`. This took one new listener, one data file and one method in `SensorProcessor`. A second line gives the number of readings saved to `archive/sensor_log.txt`. Every legacy console line and the daily report are unchanged, so the legacy comparison still passes (it ignores the extension lines).
+**Alerting extension (spec 3.4).** Each rule has a severity column (temperature CRITICAL; humidity, soil and nutrient WARNING; light INFO). A new `SeverityLog` listener writes every alert with its level, plus a count per level, to `archive/alerts_by_severity.txt`. A sensor that reports a reading outside its valid range in `sensors.csv` (e.g. NaN, humidity outside 0–100 %) or does not respond at all raises a CRITICAL *Sensor Failure* alert; the value is not stored, no device is triggered, and the chamber carries on with its other sensors. At the end of the run one extra console line gives the count per level, e.g. `Alerts by severity: INFO=21, WARNING=64, CRITICAL=93`. This took one new listener, one data file read into `SensorRanges`, a range check in `SensorProcessor` and a catch for unresponsive sensors in `ChamberMonitor`. A second line gives the number of readings saved to `archive/sensor_log.txt`. Every legacy console line and the daily report are unchanged, so the legacy comparison still passes (it ignores the extension lines).
 
 **Reporting extension (spec 3.5).** `ResourceMeter` now keeps water and energy per chamber (each charge names its chamber), and a new `ResourceUsageReport` (`DayEndOutput`) writes the Water Usage and Energy Consumption reports to `archive/resource_usage.txt`: one line per chamber and the total, read from the same counters as the daily report's totals. One console line sums it up, e.g. `Resource usage: water 840 L, energy 510 kWh across 4 chambers`. Saving it needed no change to `FarmSimulation` (it is one more `DayEndOutput` registered in `SVFRMS`), but per-chamber figures did need a one-time change underneath: `UsageMeter`'s methods now take the chamber id, so `ChamberMonitor` and `SensorProcessor` pass it on. The reports read the meter through the `UsageTotals` interface. The Nutrient Consumption report then needed no change to existing classes at all: `NutrientUsageReport` is one more `ActionListener` (it counts runs of every device that raises NUTRIENT, per chamber) and `DayEndOutput`, both registered in `SVFRMS`, writing `archive/nutrient_usage.txt` and e.g. `Nutrient usage: 27 Nutrient Injector doses across 4 chambers`. The Weekly Crop report was added the same way: `WeeklyCropReport` only reads `SummarySource`, `UsageTotals` and `CropRules`, sums each chamber into its crop, appends the day to `archive/weekly_crop_history.csv` (keeping the last seven days and leaving out a run that did not complete; a damaged file fails the save rather than silently starting over), and writes alerts, actions, water and energy per crop summed over those days to `archive/weekly_crop_report.txt`, headed e.g. `Days recorded: 3 of 7 (days 1-3; ...)`, together with each crop's spec 3.1 profile, its acceptable range per sensor worked out from its rules (e.g. `Tomato: Temperature 22-28 C, Humidity 60-80 %, Soil >= 45 %, Light >= 500 lux, Nutrient >= 40 %`); console line e.g. `Weekly crop report: 4 crops, 3 of 7 days recorded`.
 
@@ -303,7 +314,7 @@ Both new crops automatically get the shared light and nutrient rules. With the 7
 | Add a chamber | edit `main` | add a row to `chambers.csv`, or run with a config folder |
 
 **Maintainability.**
-- Each class has one job. Most are under 100 lines; the largest (`FarmConfigLoader`, `FarmSimulation`, `ControlService`) are long because of input checks and shutdown handling, not extra responsibilities.
+- Each class has one job. Most are under 100 lines; the largest (`FarmConfigLoader`, `FarmSimulation`, `WeeklyCropReport`, `SVFRMS`) are long because of input checks, shutdown handling, report formatting and wiring, not extra responsibilities.
 - Names describe the domain (`AlertStore`, `ResourceMeter`) instead of string codes.
 - Thread-safety lives inside the class that owns the data, so callers can't forget a lock.
 - The single-lock rule (§3.3) is documented in `SensorProcessor`, so future changes keep the program deadlock-free.
@@ -318,7 +329,7 @@ Both new crops automatically get the shared light and nutrient rules. With the 7
 | **Strategy** | `Device` interface + 9 device classes, used by `ControlService` | The `activateControl` `if/else` chain over device names (S6): every new device meant editing it | Each device is a different algorithm for changing a chamber's state behind one interface. `ControlService` runs any `Device` without knowing which one, so a new device is one new class |
 | **Observer** | `AlertPublisher` notifies `ChamberSummaryTracker`, `AlertStore`, `ConsoleAlertPrinter` (all `AlertListener`) | `handleEvent` did tracking, storing, counting and printing behind one string switch (S3: SRP, ISP) | The rule engine raises one `Alert` and does not know who listens. Each listener has one job, and a new reaction is a new listener: severity was added this way (`SeverityLog`). Listeners are called in registration order, which preserves the legacy output order; a listener that throws is reported on its own, the rest still run, and the run fails (the report may be short). `CopyOnWriteArrayList` makes the listener list safe to read from many threads. Device actions use the same pattern (`ActionListener`: summary tracker, console printer, nutrient report), so `ControlService` no longer depends on the report |
 | **Command** | `ControlRequest` (chamber + state + device, with `execute()`) | Queue messages were strings like `"CH1\|Cooling Fan"`, parsed again with `split` (S7) | A request is an object that carries everything needed to run later on another thread, so there's no string parsing and no lookup by chamber name |
-| **Producer–Consumer** | `ControlService`: chamber threads `put`, the control thread `take`s from an `ArrayBlockingQueue(5)` | A hand-written `wait/notifyAll` buffer that swallowed interrupts and could hang (S8, C9, C10) | Same bounded-buffer behaviour as the legacy code (capacity 5, producers block when full), using the JDK's tested implementation |
+| **Producer–Consumer** | `ControlService`: chamber threads make a timed `offer`, the control thread `take`s from an `ArrayBlockingQueue(5)` | A hand-written `wait/notifyAll` buffer that swallowed interrupts and could hang (S8, C9, C10) | Same bounded-buffer behaviour as the legacy code (capacity 5, producers block when full), using the JDK's tested implementation |
 | **Registry** | `CropRegistry`, `DeviceRegistry` | Crop and device names hard-coded in control flow (S4, S6) | Looking an object up by name is all that is needed; it lets CSV rows refer to devices by name and catches typos at start-up. `DeviceRegistry.discover()` fills itself with `ServiceLoader` from `META-INF/services`, so adding a device edits no existing class |
 | **Composition root / constructor injection** | `SVFRMS.createSimulation` | Global `static` state (S2) and concrete dependencies (S10) | Every object is created once and passed in, so there are no globals, and a seeded `SensorSource` can be injected to check behaviour |
 

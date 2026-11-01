@@ -2,6 +2,8 @@
 
 Design rule (agreed in Phase 1): **preserve behaviour, fix the smells and concurrency defects the spec asks about, add nothing else.** Every class below exists because it removes a specific smell (S#) or concurrency issue (C#) from [phase1-analysis.md](phase1-analysis.md).
 
+> **Note.** This is the Phase 2 design as proposed. The final code follows it, with additions made later (the severity column, sensor-failure alerts, the extra reports, three new devices, `Device.effects()`, the read-only report interfaces and the day-end outputs). Where a detail here differs from the code, the README describes the final version.
+
 ---
 
 ## 1. Package structure
@@ -12,13 +14,13 @@ src/main/java/org/example/
 ├── app/
 │   ├── FarmSimulation.java     runs one simulated day: start → monitor → stop → archive → report → save
 │   ├── ChamberAssignment.java  record: chamber id + crop name
-│   └── FarmConfigLoader.java   reads crops.csv and chambers.csv from the classpath
+│   └── FarmConfigLoader.java   reads crops.csv, chambers.csv and sensors.csv (built-in, or from a config folder)
 ├── model/
-│   ├── SensorType.java         enum TEMPERATURE, HUMIDITY, SOIL, LIGHT, NUTRIENT (+ legacy random range)
+│   ├── SensorType.java         enum TEMPERATURE, HUMIDITY, SOIL, LIGHT, NUTRIENT
 │   ├── ChamberState.java       current readings of one chamber (thread-safe)
 │   └── ChamberSummary.java     alert/action counts of one chamber (thread-safe)
 ├── crop/
-│   ├── ThresholdRule.java      record: sensor, HIGH/LOW, limit, device, water cost, energy cost, message
+│   ├── ThresholdRule.java      record: sensor, HIGH/LOW, limit, device, water cost, energy cost, severity, message
 │   ├── CropProfile.java        a crop name + its rules
 │   └── CropRegistry.java       crop name → profile, plus rules shared by every crop
 ├── sensor/
@@ -27,14 +29,14 @@ src/main/java/org/example/
 │   ├── SensorProcessor.java    legacy processSensor: log, update state, check rules, raise alert, charge cost, request device
 │   └── ChamberMonitor.java     Runnable: 20 cycles of 5 readings for one chamber
 ├── device/
-│   ├── Device.java             interface: name() + apply(ChamberState) → log text
+│   ├── Device.java             interface: name() + apply(ChamberState) → log text + effects()
 │   ├── CoolingFan.java  WaterPump.java  NutrientInjector.java
 │   ├── Humidifier.java  Dehumidifier.java  GrowLight.java
 │   ├── DeviceRegistry.java     device name → Device
 │   ├── ControlRequest.java     Command: "run this device on this chamber"
 │   └── ControlService.java     bounded BlockingQueue: producers = chambers, consumer = control thread
 ├── alert/
-│   ├── Alert.java              record: chamber, crop, message
+│   ├── Alert.java              record: chamber, crop, message, severity
 │   ├── AlertListener.java      interface: onAlert(Alert)
 │   ├── AlertPublisher.java     notifies listeners in registration order
 │   ├── AlertStore.java         active + archived alerts, generated count (thread-safe)
@@ -50,7 +52,7 @@ src/main/resources/
 └── chambers.csv                which crop runs in which chamber
 ```
 
-This comes to about 30 files. Most are under 30 lines: 6 are one-device classes, and 6 are records, enums or one-method interfaces. Each file has one job that a student can explain in a sentence.
+This came to about 30 files in the proposal (57 in the final code, after the extensions). Most are under 30 lines: 6 are one-device classes, and 6 are records, enums or one-method interfaces. Each file has one job that a student can explain in a sentence.
 
 ---
 
@@ -91,7 +93,7 @@ Cucumber,     TEMPERATURE, LOW,  18,    -,                 0,     0,      {crop}
 
 **Adding Kale** means adding two or more rows to `crops.csv` (and a line in `chambers.csv` if it should run). **Removing a crop** means deleting its rows. No Java file changes in either case.
 
-> **Decision D1 – CSV resource vs a Java class.** The alternative was a `CropCatalog.java` with one builder call per crop. That is just as readable, but adding a crop would *edit an existing class*, and spec 4.2 (ii) asks exactly whether that is needed. A CSV read by about 40 lines of plain Java (`BufferedReader` + `split(",")`) is the smallest thing that answers "no". No library is used.
+> **Decision D1 – CSV resource vs a Java class.** The alternative was a `CropCatalog.java` with one builder call per crop. That is just as readable, but adding a crop would *edit an existing class*, and spec 4.2 (ii) asks exactly whether that is needed. A CSV read by plain Java (`FarmConfigLoader`, `split(",")`) is the smallest thing that answers "no". No library is used.
 
 ---
 
@@ -105,6 +107,7 @@ public interface SensorSource {            // DIP: the processor doesn't know re
 public interface Device {                  // Strategy: one implementation per device
     String name();                         // "Cooling Fan"
     String apply(ChamberState state);      // changes the state, returns "Temperature reduced to 19.0C"
+    Set<Effect> effects();                 // e.g. lowers TEMPERATURE (added later; checked against each rule at start-up)
 }
 
 public interface AlertListener {           // Observer
@@ -117,6 +120,7 @@ Example device: the legacy branch at lines 93–98, now in its own class.
 ```java
 public class CoolingFan implements Device {
     public String name() { return "Cooling Fan"; }
+    public Set<Effect> effects() { return Set.of(Effect.lowers(SensorType.TEMPERATURE)); }
     public String apply(ChamberState state) {
         double t = state.adjust(SensorType.TEMPERATURE, v -> Math.max(18, v - 5));
         return "Temperature reduced to " + t + "C";
@@ -126,7 +130,7 @@ public class CoolingFan implements Device {
 
 `ChamberState.adjust` is `synchronized`, so the read-modify-write is atomic (C4). The device does not need to know about locks.
 
-`ControlService` prints `"<name> Activated"` and then the text returned by `apply`, and updates the chamber summary. Every device shares that logic, so it is written once, which removes the triplicated `handleEvent` calls in S6.
+`ControlService` runs the device and tells its `ActionListener`s, which print `"<name> Activated"` and the text returned by `apply` (`ConsoleActionPrinter`) and update the chamber summary (`ChamberSummaryTracker`). Every device shares that logic, so it is written once, which removes the triplicated `handleEvent` calls in S6.
 
 ---
 
@@ -134,7 +138,7 @@ public class CoolingFan implements Device {
 
 | Pattern | Where | Problem it solves (legacy smell) | Why this pattern and not something bigger |
 |---|---|---|---|
-| **Strategy** | `Device` + 6 implementations (7 now: `HeatingUnit` was added later as one class plus one registration) | `activateControl` if/else over device names (S6). Adding Heating Unit meant editing that method | Each device is a different algorithm behind one interface. Adding a device = one class + one line in `META-INF/services` (`ServiceLoader`). ControlService never changes |
+| **Strategy** | `Device` + 9 implementations (6 legacy; `HeatingUnit`, `VentilationSystem` and `ShadeController` were added later, each as one class plus one registration) | `activateControl` if/else over device names (S6). Adding Heating Unit meant editing that method | Each device is a different algorithm behind one interface. Adding a device = one class + one line in `META-INF/services` (`ServiceLoader`). ControlService never changes |
 | **Registry** | `CropRegistry`, `DeviceRegistry` | Crop names and device names hard-coded in control flow (S4, S5, S7) | A lookup by name is all that is needed. No factory hierarchy |
 | **Observer** | `AlertPublisher` → `ChamberSummaryTracker`, `AlertStore`, `ConsoleAlertPrinter` | `handleEvent` did summary, storage, counting and printing behind one string switch (S3: SRP, ISP) | The rule engine raises one `Alert`; each listener does one job. New outputs (a file log, severity, SMS) = a new listener |
 | **Command** + **Producer–Consumer** | `ControlRequest` on an `ArrayBlockingQueue` in `ControlService` | `"CH1\|Cooling Fan"` strings parsed with `split` (S7); hand-written `wait/notifyAll` buffer that swallowed interrupts (S8, C9) | The request carries the device and the chamber's state as objects and has `execute()`. The JDK's `BlockingQueue` provides the bounded buffer (capacity 5, as in the legacy code) |
@@ -151,9 +155,9 @@ public class CoolingFan implements Device {
 | Spec | Legacy problem | Design change |
 |---|---|---|
 | **(i) SRP** – multiple unrelated responsibilities | `SVFRMS` did everything (S1); `handleEvent` had 6 jobs (S3); report format duplicated (S11) | One job per class (see the package list). All report formatting lives only in `DailyReport` |
-| **(ii) OCP** – new crop needs code changes? | Yes: 3 places in `processSensor` (S4) | No: rows in `crops.csv`. `SensorProcessor` loops over `profile.rulesFor(sensor)` and never names a crop. Devices are open for extension via `Device` |
+| **(ii) OCP** – new crop needs code changes? | Yes: 3 places in `processSensor` (S4) | No: rows in `crops.csv`. `SensorProcessor` loops over `crops.rulesFor(crop, sensor)` (the `CropRules` interface) and never names a crop. Devices are open for extension via `Device` |
 | **(iii) LSP** – inheritance that breaks expectations | `ControlThread extends Thread` and ignores `interrupt()` (S9) | No `Thread` subclasses: tasks are `Runnable`s run by an `ExecutorService`. The consumer exits on `InterruptedException` and restores the flag. `Device` has only methods every device can honour (no `increase()/decrease()` pair a fan can't implement) |
-| **(iv) ISP** – large interfaces | `handleEvent(type, chamber, crop, message)` was one wide entry point; callers passed dummy `""` | Three tiny interfaces (`SensorSource`, `Device`, `AlertListener`), each with 1–2 methods. Callers depend only on what they use |
+| **(iv) ISP** – large interfaces | `handleEvent(type, chamber, crop, message)` was one wide entry point; callers passed dummy `""` | Small interfaces of 1–4 methods (`SensorSource`, `Device`, `AlertListener`, and in the final code also `ActionListener`, `ControlSink`, `UsageMeter`, `ReadingLog`, `UsageTotals`, `AlertArchive`, `SummarySource`, `CropRules`, `DayEndOutput`). Callers depend only on what they use |
 | **(v) DIP** – depend on abstractions | Static fields, `System.out`, a static `Random` (S2, S12) | `SensorProcessor` depends on `AlertListener`/`AlertPublisher` and `Device`, not on the concrete printer or devices. `SensorSource` and `PrintStream` are injected, so the baseline harness can pass a seeded source |
 
 ---
@@ -236,10 +240,10 @@ sequenceDiagram
     M->>P: process(CH1, Tomato, TEMPERATURE, 31)
     P->>S: set(TEMPERATURE, 31)
     P->>P: rule "Tomato TEMPERATURE HIGH 28" breached
-    P->>A: publish(Alert "CH1 Tomato High Temp")
+    P->>A: onAlert(Alert "CH1 Tomato High Temp")
     A-->>A: summary tracker → store → console printer
-    P->>R: addEnergy(10)
-    P->>Q: put(ControlRequest(CH1, state, CoolingFan))  (blocks if 5 queued)
+    P->>R: addEnergy(CH1, 10)
+    P->>Q: request(ControlRequest(CH1, state, CoolingFan))  (timed offer, waits while 5 queued)
     C->>Q: take()
     C->>F: apply(state)
     F->>S: adjust(TEMPERATURE, max(18, v−5))
@@ -273,10 +277,10 @@ The order of effects (summary → store → print → cost → device) is the sa
 | C8 unused locks | Removed | – |
 | C9 swallowed interrupts | `catch (InterruptedException e) { Thread.currentThread().interrupt(); return; }` | – |
 | C10 dead consumer → hang | The consumer catches a `RuntimeException` per request, reports it and keeps going; the executors are shut down with a timeout | `ExecutorService.awaitTermination` |
-| C11 silent thread death | `Future.get()` rethrows the chamber's exception; `main` reports it and exits non-zero | `ExecutorService` + `Future` |
+| C11 silent thread death | `Future.get()` rethrows the chamber's exception; `FarmSimulation` reports it and `main` exits non-zero | `ExecutorService` + `Future` |
 | C12 shared `Random` | Kept for identical behaviour; `SensorSource` is injected, so a test can pass a seeded source | – |
 
-**Deadlock freedom by construction.** No method holds two locks at once. Each lock (`ChamberState`, `ChamberSummary`, `AlertStore`, `SensorLog`) is held only for a few field updates and never while calling out to other objects. In particular, `SensorProcessor` releases the state lock *before* publishing an alert or calling the blocking `queue.put`. With at most one lock held at any time, the lock-wait graph cannot contain a cycle. Section 7 of the README will state this rule so future changes keep it.
+**Deadlock freedom by construction.** No method holds two locks at once. Each lock (`ChamberState`, `ChamberSummary`, `AlertStore`, `SensorLog`) is held only for a few field updates and never while calling out to other objects. In particular, `SensorProcessor` releases the state lock *before* publishing an alert or offering a request to the queue. With at most one lock held at any time, the lock-wait graph cannot contain a cycle. README section 3.3 states this rule so future changes keep it.
 
 ---
 
@@ -293,7 +297,7 @@ The following stay exactly as in the legacy code:
 - summaries created only on the first alert or action;
 - the report and file layout, including the literal `Daily Report` log entry.
 
-**Verification.** `baseline/RefactoredHarness.java` wires the new classes with a `RandomSensorSource(new Random(42))` and a **single-thread** chamber executor, the same serial schedule as the legacy harness. Its output goes through the same `normalize.py` and must `diff` cleanly against `baseline/expected/seed42-normalized.txt`. The real app keeps four concurrent chambers. Running the invariant checker 300 times against it must give 300/300 OK, where the legacy code gave 92/300.
+**Verification.** `baseline/src/harness/RefactoredHarness.java` wires the new classes with a `RandomSensorSource(new Random(42))` and a **single-thread** chamber executor, the same serial schedule as the legacy harness. Its output goes through the same `normalize.py` and must `diff` cleanly against `baseline/expected/seed42-normalized.txt`. The real app keeps four concurrent chambers. Running the invariant checker 300 times against it must give 300/300 OK, where the legacy code gave 92/300.
 
 ---
 

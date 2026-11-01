@@ -95,7 +95,7 @@ list. <b>Only 92 of 300 runs were correct.</b></p>
 <p><b>Deadlocks.</b> <i>Reachable:</i> C10. Producers wait for a slot only the dead consumer could free and <code>main</code> waits for
 the producers; nothing times out, and C9 means it cannot be cancelled. <i>Latent:</i> <code>alertLock &rarr; reportLock</code> is taken in
 the same order in both report methods, so it cannot cycle as written, but reversing either would let the two report threads each hold
-one lock and wait for the other (the commented-out <code>sleep</code>s at 224 and 385 widen that window). Section 5 removes both.</p>
+one lock and wait for the other (the commented-out <code>sleep</code> at 224 widens that window). Section 5 removes both.</p>
 <p><b>Spec gaps.</b> Missing: severity levels and the sensor-failure alert (3.4); Heating Unit, Ventilation System and Shade
 Controller (3.3); all 3.5 reports but the daily one. We add them all without touching the legacy output (section 6); the Weekly Crop
 report sums the last seven simulated days (one per run) rather than inventing data. Kept as-is because spec 4 requires preserved behaviour: only Tomato
@@ -108,13 +108,13 @@ remove a specific problem. We captured the legacy output with a fixed seed and s
 is <b>byte-identical after normalization</b> (timestamps and control-thread timing removed).</p>
 <ul>
 <li><b>Crop rules as data.</b> All 19 copied alert blocks became rows in <code>crops.csv</code>:
-<code>crop, sensor, HIGH|LOW, limit, device, water, energy, message</code>. <code>*</code> rows apply to every crop (the legacy
+<code>crop, sensor, HIGH|LOW, limit, device, water, energy, severity, message</code>. <code>*</code> rows apply to every crop (the legacy
 global light and nutrient limits). <code>SensorProcessor</code> loops over whatever rules the registry holds and never names a crop; each rule's <code>Device</code> is resolved once at load time.
 We chose a CSV over a Java catalogue class because adding a crop to a class is still "modifying existing code" (spec 4.2 ii).</li>
 <li><b>One class per device</b> behind a small <code>Device</code> interface (<code>name</code>, <code>apply</code>, and the <code>effects</code> it declares, e.g. <i>lowers TEMPERATURE</i>). <code>ControlService</code> only queues and runs
 requests; what happens after a device runs (summary, console lines) is up to its <code>ActionListener</code>s.</li>
 <li><b>Observer for alerts</b>: one <code>Alert</code>, and each listener does one job. <b>Objects, not strings, on the queue</b>: a <code>ControlRequest</code>.</li>
-<li><b>Composition root.</b> Only <code>SVFRMS.createSimulation</code> creates and connects objects; everything else gets its
+<li><b>Composition root.</b> Only <code>SVFRMS.createSimulation</code> creates and connects the long-lived objects; everything else gets its
 dependencies through its constructor, so the tests and the baseline harness can inject a seeded or fixed sensor source.</li>
 <li><b>Fail fast on bad configuration.</b> Every CSV error (unknown device, a device that cannot correct its rule's breach, wrong columns, bad number, duplicate rule or chamber)
 stops the program before any thread starts, naming the file and line.</li>
@@ -336,7 +336,7 @@ plus each crop's spec 3.1 profile, e.g. <i>Temperature 22&ndash;28 C, Soil &ge; 
 <table>
 <tr><th style="width:17%">Pattern</th><th style="width:25%">Where</th><th>Problem it solves and why we chose it</th></tr>
 <tr><td>Strategy</td><td><code>Device</code> + 9 classes</td><td>The <code>activateControl</code> chain. Each device is a different algorithm behind one interface, so a new device never touches <code>ControlService</code>. Devices are found with <code>ServiceLoader</code>, so adding one edits no existing class.</td></tr>
-<tr><td>Observer</td><td><code>AlertPublisher</code> &rarr; <code>AlertListener</code>s</td><td><code>handleEvent</code> did four jobs behind a string switch. The rule engine now raises one alert, and each listener (summary, store, console) does one job. New outputs are new listeners; a failing listener is reported on its own, the rest still run, and the run fails. Device actions use the same pattern (<code>ActionListener</code>: summary, console, nutrient report).</td></tr>
+<tr><td>Observer</td><td><code>AlertPublisher</code> &rarr; <code>AlertListener</code>s</td><td><code>handleEvent</code> did six jobs behind a string switch. The rule engine now raises one alert, and each listener (summary, store, console) does one job. New outputs are new listeners; a failing listener is reported on its own, the rest still run, and the run fails. Device actions use the same pattern (<code>ActionListener</code>: summary, console, nutrient report).</td></tr>
 <tr><td>Command</td><td><code>ControlRequest</code></td><td>Replaces the <code>"CH1|Cooling Fan"</code> string. The request carries the device and the chamber state and has <code>execute()</code>, so the producer decides <i>what</i> and the consumer decides <i>when</i>.</td></tr>
 <tr><td>Producer&ndash;Consumer</td><td><code>ControlService</code></td><td>Replaces the hand-written <code>wait/notifyAll</code> buffer that swallowed interrupts, with the JDK's <code>ArrayBlockingQueue</code> (capacity 5, as before).</td></tr>
 <tr><td>Registry</td><td><code>CropRegistry</code>, <code>DeviceRegistry</code></td><td>Crop and device names were hard-coded in control flow. A lookup by name is all that is needed; no factory hierarchy. <code>DeviceRegistry.discover()</code> fills itself from <code>META-INF/services</code>; a duplicate device name is rejected at start-up.</td></tr>

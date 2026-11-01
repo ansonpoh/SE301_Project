@@ -28,7 +28,8 @@ import org.example.sensor.UsageMeter;
  *   2. run every chamber monitor and wait for all of them
  *   3. stop the control thread once its queue is drained
  *   4. archive alerts, then print the report (fixed order), then save it
- *      and every other end-of-day output (alerts by severity, sensor log)
+ *      and every other end-of-day output (alerts by severity, sensor log,
+ *      resource usage, nutrient usage, weekly crop report)
  *
  * Chamber failures are read from each chamber's Future once every thread has
  * stopped and reported, instead of a thread dying silently as in the legacy

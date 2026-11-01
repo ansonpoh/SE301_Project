@@ -1,0 +1,14 @@
+# Live demo: the 7 demo chambers plus CH8 Basil, whose 3 rules are in this
+# folder's crops.csv (lines 56-58). Nothing is rebuilt and no Java changes:
+#
+#   java -jar run.jar live-demo
+#
+# chamber, crop
+CH1, Tomato
+CH2, Strawberry
+CH3, Lettuce
+CH4, Chili
+CH5, Kale
+CH6, Bok Choy
+CH7, Bell Pepper
+CH8, Basil

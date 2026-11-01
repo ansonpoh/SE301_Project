@@ -1,6 +1,6 @@
 # Phase 1 – Legacy Analysis of `SVFRMS.java`
 
-All line numbers refer to the original [src/main/java/org/example/SVFRMS.java](../src/main/java/org/example/SVFRMS.java) (393 lines, commit `2aefe14`).
+All line numbers refer to the original `SVFRMS.java` (393 lines, commit `2aefe14`), kept unchanged at [baseline/legacy/org/example/SVFRMS.java](../baseline/legacy/org/example/SVFRMS.java). `src/main/java/org/example/SVFRMS.java` is now the refactored entry point.
 
 ---
 
@@ -57,14 +57,14 @@ A single class simulates a vertical farm for one "day":
 
 ### Gaps between the code and the specification
 
-These are documented as limitations. They are **not** implemented, because spec section 4 says to preserve existing behaviour.
+At this stage we documented them as limitations, because spec section 4 says to preserve existing behaviour. All of them were later added as extensions that leave every legacy console line and the daily report unchanged (README section 5): the three devices are used only by the new crops, and severity, sensor-failure alerts and the extra reports are new outputs.
 
 | Spec | Specification says | Code does |
 |---|---|---|
 | 3.3 Devices | Water Pump, Cooling Fan, **Heating Unit**, Grow Light, Nutrient Injector, **Ventilation System**, **Shade Controller** | Has the pump, fan, light and injector, plus **Humidifier** and **Dehumidifier**, which the spec does not list. The three devices in bold are missing |
 | 3.1 Crop profiles | Every crop has temperature, humidity, soil and light ranges (min and max) | Only Tomato has every rule; humidity only for Tomato/Strawberry; soil only a minimum, and only for Tomato; light/nutrient use one global threshold |
-| 3.4 Alerts | Severity INFO / WARNING / CRITICAL; Sensor Failure Alert | No severity; no sensor-failure detection |
-| 3.5 Reports | Daily, Weekly, Water, Energy, Nutrient reports | One combined daily report |
+| 3.4 Alerts | Severity INFO / WARNING / CRITICAL; Sensor Failure Alert | No severity; no sensor-failure detection (later added: severity column in `crops.csv`, `SeverityLog`, `sensors.csv` valid ranges) |
+| 3.5 Reports | Daily, Weekly, Water, Energy, Nutrient reports | One combined daily report (later added: resource, nutrient and weekly crop reports) |
 
 **Note on LSP (4.2 iii).** The legacy code has no domain inheritance hierarchy at all, so there is no classic "Square extends Rectangle" violation. The only inheritance is `extends Thread`, and the defensible LSP point is S9: a `Thread` subtype that ignores `interrupt()` does not behave as callers of `Thread` expect. LSP matters more for the *new* design. For example, a single `Device` base class with `increase()`/`decrease()` would force a Shade Controller or Cooling Fan to implement a method that makes no sense for it. We avoid that with small interfaces (Phase 2).
 
@@ -135,7 +135,7 @@ The lost-update checks are skipped when a thread crashed, so these counts **unde
 
 **Problem.** A fixed seed alone does not make the legacy run reproducible (C12), and the legacy run is often corrupted anyway (C1–C3).
 
-**Approach.** [baseline/src/org/example/BaselineHarness.java](../baseline/src/org/example/BaselineHarness.java) runs the *unmodified* legacy classes (compiled from `src/`, which is not edited). It:
+**Approach.** [baseline/src/org/example/BaselineHarness.java](../baseline/src/org/example/BaselineHarness.java) runs the *unmodified* legacy classes (compiled from `baseline/legacy/`, which is not edited). It:
 - sets `SVFRMS.random = new Random(42)`;
 - runs the same `ChamberThread`s **one at a time** (start + join) in the legacy order CH1→CH4, so draws are always consumed in the same order, with the legacy `ControlThread` running concurrently;
 - then calls `archiveAlerts()`, `generateDailyReport()` and `saveArchiveReport()`, using archive-first, the order seen in ~96% of legacy runs (481/500).
@@ -171,9 +171,9 @@ Rule: **preserve behaviour (spec section 4), fix only concurrency defects and de
 | Q8 | Archive-vs-report order is random | 384–386 | **Fix**: always archive first (the ~96% legacy behaviour) – this is concurrency issue C6 |
 | Q9 | The console report's `Active Alerts` is almost always 0, because it runs after archiving | 212 | Keep (follows from Q8) |
 | Q10 | Device effects are overwritten by the next sensor reading, so devices never influence later alerts | 94–124 vs 146–198 | Keep the asynchronous model; only make each state update thread-safe (C4) |
-| Q11 | `sensorLogs` is collected but never output; the `reports` log contains the literal `"Daily Report"` | 64, 215 | Keep both (the second is part of the file format) |
+| Q11 | `sensorLogs` is collected but never output; the `reports` log contains the literal `"Daily Report"` | 64, 215 | Keep the `"Daily Report"` entry (part of the file format); the sensor log is later saved to `archive/sensor_log.txt` as a new output |
 | Q12 | Dead code: `irrigationCycle`, `feedingCycle`, `showAlerts`, `showLogs`, two unused locks | 243–249, 297–307, 28–29 | **Remove** (no observable behaviour) |
-| Q13 | Severity levels, sensor-failure alerts and extra reports (spec 3.4/3.5) | – | Not implemented; listed as limitations |
+| Q13 | Severity levels, sensor-failure alerts and extra reports (spec 3.4/3.5) | – | Not in the first refactor; later added as extensions that leave the legacy output unchanged (README section 5) |
 
 ---
 
@@ -192,4 +192,4 @@ Rule: **preserve behaviour (spec section 4), fix only concurrency defects and de
 | 4.5 Add/remove crops | Phase 4: add Kale and Bok Choy as one profile each, and show the diff |
 | 5 Deliverables | `run.jar` via `mvn package`; README sections 3–8 |
 
-**Not doing** (overengineering for this brief): JSON/YAML libraries or a general configuration framework (one ~40-line CSV reader is enough), a Strategy class per crop, new devices, severity levels, new report types, dependency-injection frameworks, or extra abstraction layers with only one implementation and no smell to fix.
+**Not doing** (overengineering for this brief): JSON/YAML libraries or a general configuration framework (one hand-written CSV reader is enough), a Strategy class per crop, dependency-injection frameworks, or extra abstraction layers with only one implementation and no smell to fix.
